@@ -12,9 +12,8 @@ interval = setInterval(function() {
 
 
 /** received event from content.js to send final message */
-document.addEventListener('triggerWhatsappSend', function(e, data) {
-    alert("Event received");
-    console.log("triggerWhatsappSend");
+document.addEventListener('whatsappContentToWhatsappJs', function(e, data) {
+    console.log("whatsappContentToWhatsappJs");
     console.log(e.detail);
     window.WWebJS.sendWhatsappMessage(e.detail.receiver, e.detail.text, e.detail.internalOptions, false, e.detail.uid);
 });
@@ -117,7 +116,7 @@ function setWindowStore() {
 
 window.WWebJS = {};
 
-const responseEvent = 'WhatsappSendResponse';
+const responseEvent = 'WhatsappjsResponse';
 window.WWebJS.sendWhatsappMessage = async (receiver, text, options, sendSeen, uid) => {
     try {
         const chatWid = window.Store.WidFactory.createWid(receiver+'@c.us');
@@ -375,7 +374,6 @@ window.WWebJS.processStickerData = async (mediaInfo) => {
 
 window.WWebJS.processMediaData = async (mediaInfo, { forceVoice, forceDocument, forceGif }) => {
     const file = window.WWebJS.mediaInfoToFile(mediaInfo);
-    console.log(file);
     const mData = await window.Store.OpaqueData.createFromData(file, file.type);
     const mediaPrep = window.Store.MediaPrep.prepRawMedia(mData, { asDocument: forceDocument });
     const mediaData = await mediaPrep.waitForPrep();
@@ -536,7 +534,6 @@ window.WWebJS.getContacts = () => {
 };
 
 window.WWebJS.mediaInfoToFile = ({ data, mimetype, filename }) => {
-    console.log(data, mimetype, filename)
     const binaryData = window.atob(data);
 
     const buffer = new ArrayBuffer(binaryData.length);

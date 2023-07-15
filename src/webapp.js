@@ -1,4 +1,4 @@
-const messageAction = 'sendWhatsappMessage';
+const messageAction = 'webAppToContentjs';
 const sendResponseEvent = 'whatsappSendResponse';
 window.whatsappWebSuite = {};
 
@@ -29,8 +29,8 @@ window.whatsappWebSuite.sendUrlMediaMessage = function(mobile, url, text) {
 
     let message = {
         'mobile': mobile,
-        'url': url,
         'text': text,
+        'url': url,
     };
 
     if(!isValidMobile(mobile)) {
@@ -53,9 +53,9 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
 
     let message = {
         'mobile': mobile,
+        'text': text,
         'base64Data': base64Data,
         'mime': mime,
-        'text': text,
     };
 
     if(!isValidMobile(mobile)) {
@@ -136,4 +136,21 @@ function getDiskSizeFromBase64(base64Data) {
     var diskSizeInBytes = binaryData.length;
   
     return diskSizeInBytes;
+}
+
+
+function base64MimeType(encoded) {
+    var result = null;
+
+    if (typeof encoded !== 'string') {
+        return result;
+    }
+
+    var mime = encoded.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+
+    if (mime && mime.length) {
+        result = mime[1];
+    }
+
+    return result;
 }

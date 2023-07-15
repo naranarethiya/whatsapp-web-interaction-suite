@@ -1,7 +1,7 @@
 /** Listen port.postMessage from content.js */
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     console.log("BG Received Message", request);
-    if (request.action === 'sendWhatsappMessage') {
+    if (request.action === 'contentjsToBackground') {
         sendWhatsappMessage(request, sendResponse);
         return true;
     }
@@ -20,7 +20,7 @@ async function sendWhatsappMessage(msg, sendResponse) {
     }
 
     let messageData = {
-        action: 'sendWhatsappMessage',
+        action: 'backgroundToWhatsapp',
         text: msg.text,
         receiver: msg.mobile,
         internalOptions: {},
@@ -86,7 +86,7 @@ async function downloadMediaFromUrl(url, options = {}) {
         
         return { 
             data: data, 
-            m: mime, 
+            mimetype: mime, 
             filename: name, 
             filesize: size 
         };

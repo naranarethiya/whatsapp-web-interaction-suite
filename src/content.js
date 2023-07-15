@@ -3,14 +3,14 @@
  * */
 window.addEventListener("message", async (event) => {
     console.log("Received event in content.js", event)
-    if(event.data.action == 'sendWhatsappMessage') {
+    if(event.data.action == 'webAppToContentjs') {
         // send message to background.js
-        console.log(event.data);
+        event.data.action = 'contentjsToBackground';
         const response = await chrome.runtime.sendMessage(event.data);
 
         if(!response.success) {
             triggerMessageResponse(response.response, response.success, {
-                mobile: event.data.receiver,
+                mobile: event.data.mobile,
                 text: event.data.text,
                 url: event.data.url ? event.data.url : '',
                 base64Data: event.data.media ? event.data.media.data : '',
@@ -19,7 +19,7 @@ window.addEventListener("message", async (event) => {
         }
         else {
             triggerMessageResponse(response.response, response.success, {
-                mobile: event.data.receiver,
+                mobile: event.data.mobile,
                 text: event.data.text,
                 url: event.data.url ? event.data.url : '',
                 base64Data: event.data.media ? event.data.media.data : '',
@@ -30,21 +30,14 @@ window.addEventListener("message", async (event) => {
 });
 
 
-
-/** received event from content.js to send final message */
-const sendWhatsappEvent = 'triggerWhatsappSend';
-document.addEventListener(sendWhatsappEvent, (e) => {
-    window.WWebJS.sendWhatsappMessage(e.detail.receiver, e.detail.text, e.detail.internalOptions, false, e.returnMessage);
-});
-
-
 /** received event from whatsapp.js to receive response */
-const responseEvent = 'WhatsappSendResponse';
+const responseEvent = 'WhatsappjsResponse';
 document.addEventListener(responseEvent, (e) => {
-    whatsappTabListenerSendResponse[e.detail.message.uid](e.detail)
+    whatsappTabListenerSendResponse[e.detail.uid](e.detail)
 });
 
 
+const sendResponseEvent = 'whatsappSendResponse';
 function triggerMessageResponse(response, isSuccess, message) {
     let data = { message: message, success: isSuccess, response: response };
     document.dispatchEvent(new CustomEvent(sendResponseEvent,  { detail: data }));
