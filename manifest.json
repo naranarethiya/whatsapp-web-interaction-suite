@@ -1,0 +1,49 @@
+{
+    "manifest_version":3,
+    "name":"WhatsApp Interaction Suite",
+    "version":"1.0",
+    "description":"Enhance your WhatsApp web experience with advanced interaction features.",
+    "permissions":[
+        "tabs",
+        "activeTab",
+        "scripting"
+    ],
+    "background":{
+        "service_worker":"src/background.js",
+        "type":"module"
+    },
+    "content_scripts": [
+        {
+            "matches": ["http://*/*", "https://*/*"],
+            "js": ["src/jquery-3.7.0.min.js", "src/content.js"]
+        },
+        {
+            "matches": ["http://*/*", "https://*/*"],
+            "js": ["src/webapp.js"],
+            "world": "MAIN"
+        },
+        {
+            "matches": ["https://web.whatsapp.com/*"],
+            "js": ["src/moduleraid.js", "src/util/whatsapp.js"],
+            "world": "MAIN"
+        },
+        {
+            "matches": ["https://web.whatsapp.com/*"],
+            "js": ["src/whatsappContent.js"]
+        }
+    ],
+    "web_accessible_resources": [{
+        "resources": ["src/moduleraid.js", "src/util/whatsapp.js"],
+        "matches": ["https://web.whatsapp.com/*"]
+    }],
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*"
+      ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "externally_connectable": {
+        "matches": ["http://localhost/"]
+    }
+ }

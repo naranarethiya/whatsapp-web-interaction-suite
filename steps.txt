@@ -1,0 +1,5 @@
+web app use function sendBase64Message which is part of webapp.js
+webapp.js validate and postMessage with action 'webappToContentjs'
+content.js listen to event 'webappToContentjs' and send chrome.runtime.sendMessage with action contentjsTobackground
+background send message using chrome.tabs.sendMessage with action 'backgroundToWhatsappContentjs'
+whatsappcontent.js listen to message 'backgroundToWhatsappContentjs' and dispatch event 'whatsappContentToWhatsappMain' which is
