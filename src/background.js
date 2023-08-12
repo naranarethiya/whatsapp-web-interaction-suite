@@ -36,9 +36,10 @@ async function sendWhatsappMessage(msg, sendResponse) {
             messageData.internalOptions.caption = msg.text,
             messageData.text = '';
         }
-        else if(typeof msg.media == 'object' && isBase64(msg.media.data)) {
+        else if(typeof msg.media == 'object') {
             messageData.internalOptions.attachment = {
-                data: msg.media.data.replace(/^data:[a-z]+\/[a-z]+;base64,/, ''),
+                // data: msg.media.data.replace(/^data:[a-z]+\/[a-z]+;base64,/, ''),
+                data: msg.media.data,
                 mimetype: msg.media.mime, 
                 filename: msg.media.filename, 
                 filesize: msg.media.filesize 

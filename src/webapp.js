@@ -63,7 +63,7 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
     }
 
     if(!isBase64(base64Data)) {
-        return triggerMessageResponse("Invalid base64 Data", false, message);
+        // return triggerMessageResponse("Invalid base64 Data", false, message);
     }
 
     if(isEmptyString(mime)) {

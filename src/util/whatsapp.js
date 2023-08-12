@@ -26,7 +26,7 @@ function setWindowStore() {
     window.Store.AppState = window.mR.findModule('Socket')[0].Socket;
     window.Store.Conn = window.mR.findModule('Conn')[0].Conn;
     window.Store.BlockContact = window.mR.findModule('blockContact')[0];
-    window.Store.Call = window.mR.findModule('CallCollection')[0].CallCollection;
+    window.Store.Call = window.mR.findModule((module) => module.default && module.default.Call)[0].default.Call;
     window.Store.Cmd = window.mR.findModule('Cmd')[0].Cmd;
     window.Store.CryptoLib = window.mR.findModule('decryptE2EMedia')[0];
     window.Store.DownloadManager = window.mR.findModule('downloadManager')[0].downloadManager;
@@ -48,8 +48,11 @@ function setWindowStore() {
     window.Store.SendClear = window.mR.findModule('sendClear')[0];
     window.Store.SendDelete = window.mR.findModule('sendDelete')[0];
     window.Store.SendMessage = window.mR.findModule('addAndSendMsgToChat')[0];
+    window.Store.EditMessage = window.mR.findModule('addAndSendMessageEdit')[0];
     window.Store.SendSeen = window.mR.findModule('sendSeen')[0];
     window.Store.User = window.mR.findModule('getMaybeMeUser')[0];
+    window.Store.ContactMethods = window.mR.findModule('getUserid')[0];
+    window.Store.BusinessProfileCollection = window.mR.findModule('BusinessProfileCollection')[0].BusinessProfileCollection;
     window.Store.UploadUtils = window.mR.findModule((module) => (module.default && module.default.encryptAndUpload) ? module.default : null)[0].default;
     window.Store.UserConstructor = window.mR.findModule((module) => (module.default && module.default.prototype && module.default.prototype.isServer && module.default.prototype.isUser) ? module.default : null)[0].default;
     window.Store.Validators = window.mR.findModule('findLinks')[0];
@@ -59,7 +62,7 @@ function setWindowStore() {
     window.Store.PresenceUtils = window.mR.findModule('sendPresenceAvailable')[0];
     window.Store.ChatState = window.mR.findModule('sendChatStateComposing')[0];
     window.Store.GroupParticipants = window.mR.findModule('promoteParticipants')[0];
-    window.Store.JoinInviteV4 = window.mR.findModule('sendJoinGroupViaInviteV4')[0];
+    window.Store.JoinInviteV4 = window.mR.findModule('queryGroupInviteV4')[0];
     window.Store.findCommonGroups = window.mR.findModule('findCommonGroups')[0].findCommonGroups;
     window.Store.StatusUtils = window.mR.findModule('setMyStatus')[0];
     window.Store.ConversationMsgs = window.mR.findModule('loadEarlierMsgs')[0];
@@ -77,7 +80,7 @@ function setWindowStore() {
         ...window.mR.findModule('toWebpSticker')[0],
         ...window.mR.findModule('addWebpMetadata')[0]
     };
-
+  
     window.Store.GroupUtils = {
         ...window.mR.findModule('createGroup')[0],
         ...window.mR.findModule('setGroupDescription')[0],
@@ -92,6 +95,12 @@ function setWindowStore() {
                 id: e
             });
         };
+    }
+
+    if (window.mR.findModule('ChatCollection')[0] && window.mR.findModule('ChatCollection')[0].ChatCollection) {
+        if (typeof window.mR.findModule('ChatCollection')[0].ChatCollection.findImpl === 'undefined' && typeof window.mR.findModule('ChatCollection')[0].ChatCollection._find != 'undefined') {
+            window.mR.findModule('ChatCollection')[0].ChatCollection.findImpl = window.mR.findModule('ChatCollection')[0].ChatCollection._find;
+        }
     }
 
     // TODO remove these once everybody has been updated to WWebJS with legacy sessions removed
@@ -164,6 +173,7 @@ window.WWebJS.sendMessage = async (chat, content, options = {}) => {
             attOptions.caption = options.caption; 
         }
         content = options.sendMediaAsSticker ? undefined : attOptions.preview;
+        attOptions.isViewOnce = options.isViewOnce;
 
         delete options.attachment;
         delete options.sendMediaAsSticker;
@@ -269,8 +279,8 @@ window.WWebJS.sendMessage = async (chat, content, options = {}) => {
     }
 
     let listOptions = {};
-    if(options.list){
-        if(window.Store.Conn.platform === 'smba' || window.Store.Conn.platform === 'smbi'){
+    if (options.list) {
+        if (window.Store.Conn.platform === 'smba' || window.Store.Conn.platform === 'smbi') {
             throw '[LT01] Whatsapp business can\'t send this yet';
         }
         listOptions = {
@@ -330,6 +340,40 @@ window.WWebJS.sendMessage = async (chat, content, options = {}) => {
     return window.Store.Msg.get(newMsgId._serialized);
 };
 
+window.WWebJS.editMessage = async (msg, content, options = {}) => {
+
+    const extraOptions = options.extraOptions || {};
+    delete options.extraOptions;
+    
+    if (options.mentionedJidList) {
+        options.mentionedJidList = options.mentionedJidList.map(cId => window.Store.Contact.get(cId).id);
+    }
+
+    if (options.linkPreview) {
+        options.linkPreview = null;
+
+        // Not supported yet by WhatsApp Web on MD
+        if(!window.Store.MDBackend) {
+            const link = window.Store.Validators.findLink(content);
+            if (link) {
+                const preview = await window.Store.Wap.queryLinkPreview(link.url);
+                preview.preview = true;
+                preview.subtype = 'url';
+                options = { ...options, ...preview };
+            }
+        }
+    }
+
+
+    const internalOptions = {
+        ...options,
+        ...extraOptions
+    };
+
+    await window.Store.EditMessage.sendMessageEdit(msg, content, internalOptions);
+    return window.Store.Msg.get(msg.id._serialized);
+};
+
 window.WWebJS.toStickerData = async (mediaInfo) => {
     if (mediaInfo.mimetype == 'image/webp') return mediaInfo;
 
@@ -386,6 +430,9 @@ window.WWebJS.processMediaData = async (mediaInfo, { forceVoice, forceDocument, 
 
     if (forceVoice && mediaData.type === 'audio') {
         mediaData.type = 'ptt';
+        const waveform = mediaObject.contentInfo.waveform;
+        mediaData.waveform =
+            waveform ?? await window.WWebJS.generateWaveform(file);
     }
 
     if (forceGif && mediaData.type === 'video') {
@@ -477,7 +524,7 @@ window.WWebJS.getChatModel = async chat => {
     
     res.lastMessage = null;
     if (res.msgs && res.msgs.length) {
-        const lastMessage = window.Store.Msg.get(chat.lastReceivedKey._serialized);
+        const lastMessage = chat.lastReceivedKey ? window.Store.Msg.get(chat.lastReceivedKey._serialized) : null;
         if (lastMessage) {
             res.lastMessage = window.WWebJS.getMessageModel(lastMessage);
         }
@@ -505,19 +552,56 @@ window.WWebJS.getChats = async () => {
 
 window.WWebJS.getContactModel = contact => {
     let res = contact.serialize();
-    res.isBusiness = contact.isBusiness;
+    res.isBusiness = contact.isBusiness === undefined ? false : contact.isBusiness;
 
     if (contact.businessProfile) {
         res.businessProfile = contact.businessProfile.serialize();
     }
 
-    res.isMe = contact.isMe;
-    res.isUser = contact.isUser;
-    res.isGroup = contact.isGroup;
-    res.isWAContact = contact.isWAContact;
-    res.isMyContact = contact.isMyContact;
+    // TODO: remove useOldImplementation and its checks once all clients are updated to >= v2.2327.4
+    const useOldImplementation
+        = window.compareWwebVersions(window.Debug.VERSION, '<', '2.2327.4');
+
+    res.isMe = useOldImplementation
+        ? contact.isMe
+        : window.Store.ContactMethods.getIsMe(contact);
+    res.isUser = useOldImplementation
+        ? contact.isUser
+        : window.Store.ContactMethods.getIsUser(contact);
+    res.isGroup = useOldImplementation
+        ? contact.isGroup
+        : window.Store.ContactMethods.getIsGroup(contact);
+    res.isWAContact = useOldImplementation
+        ? contact.isWAContact
+        : window.Store.ContactMethods.getIsWAContact(contact);
+    res.isMyContact = useOldImplementation
+        ? contact.isMyContact
+        : window.Store.ContactMethods.getIsMyContact(contact);
     res.isBlocked = contact.isContactBlocked;
-    res.userid = contact.userid;
+    res.userid = useOldImplementation
+        ? contact.userid
+        : window.Store.ContactMethods.getUserid(contact);
+    res.isEnterprise = useOldImplementation
+        ? contact.isEnterprise
+        : window.Store.ContactMethods.getIsEnterprise(contact);
+    res.verifiedName = useOldImplementation
+        ? contact.verifiedName
+        : window.Store.ContactMethods.getVerifiedName(contact);
+    res.verifiedLevel = useOldImplementation
+        ? contact.verifiedLevel
+        : window.Store.ContactMethods.getVerifiedLevel(contact);
+    res.statusMute = useOldImplementation
+        ? contact.statusMute
+        : window.Store.ContactMethods.getStatusMute(contact);
+    res.name = useOldImplementation
+        ? contact.name
+        : window.Store.ContactMethods.getName(contact);
+    res.shortName = useOldImplementation
+        ? contact.shortName
+        : window.Store.ContactMethods.getShortName(contact);
+    res.pushname = useOldImplementation
+        ? contact.pushname
+        : window.Store.ContactMethods.getPushname(contact);
 
     return res;
 };
@@ -525,6 +609,8 @@ window.WWebJS.getContactModel = contact => {
 window.WWebJS.getContact = async contactId => {
     const wid = window.Store.WidFactory.createWid(contactId);
     const contact = await window.Store.Contact.find(wid);
+    const bizProfile = await window.Store.BusinessProfileCollection.fetchBizProfile(wid);
+    bizProfile.profileOptions && (contact.businessProfile = bizProfile);
     return window.WWebJS.getContactModel(contact);
 };
 
@@ -587,6 +673,42 @@ window.WWebJS.generateHash = async (length) => {
         result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     return result;
+};
+
+/**
+ * Referenced from and modified:
+ * @see https://github.com/wppconnect-team/wa-js/commit/290ebfefe6021b3d17f7fdfdda5545bb0473b26f
+ */
+window.WWebJS.generateWaveform = async (audioFile) => {
+    try {
+        const audioData = await audioFile.arrayBuffer();
+        const audioContext = new AudioContext();
+        const audioBuffer = await audioContext.decodeAudioData(audioData);
+
+        const rawData = audioBuffer.getChannelData(0);
+        const samples = 64;
+        const blockSize = Math.floor(rawData.length / samples);
+        const filteredData = [];
+        for (let i = 0; i < samples; i++) {
+            const blockStart = blockSize * i;
+            let sum = 0;
+            for (let j = 0; j < blockSize; j++) {
+                sum = sum + Math.abs(rawData[blockStart + j]);
+            }
+            filteredData.push(sum / blockSize);
+        }
+
+        const multiplier = Math.pow(Math.max(...filteredData), -1);
+        const normalizedData = filteredData.map((n) => n * multiplier);
+
+        const waveform = new Uint8Array(
+            normalizedData.map((n) => Math.floor(100 * n))
+        );
+
+        return waveform;
+    } catch (e) {
+        return undefined;
+    }
 };
 
 window.WWebJS.sendClearChat = async (chatId) => {
