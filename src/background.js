@@ -1,7 +1,7 @@
 /** Listen port.postMessage from content.js */
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    console.log("BG Received Message", request);
     if (request.action === 'contentjsToBackground') {
+        console.log("BG Received Message", request);
         sendWhatsappMessage(request, sendResponse);
         return true;
     }

@@ -2,8 +2,8 @@
  *  this listening message from "website app" on same tab of web app
  * */
 window.addEventListener("message", async (event) => {
-    console.log("Received event in content.js", event)
     if(event.data.action == 'webAppToContentjs') {
+        console.log("Received event in content.js", event)
         // send message to background.js
         event.data.action = 'contentjsToBackground';
         const response = await chrome.runtime.sendMessage(event.data);
