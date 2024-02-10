@@ -10,6 +10,8 @@ This extension exposes JavaScript functions that allow you to utilize them for s
 ## How It works
 This extension serves as a bridge between your web application and WhatsApp Web.
 
+![How it works](https://raw.githubusercontent.com/naranarethiya/whatsapp-web-interaction-suite/main/doc/how-it-works.png "How it works")
+
 ## How to use
 This extension hasn't been published on the Chrome Web Store yet. Therefore, you'll need to manually clone this repository and install it as an unpacked extension.
 
