@@ -13,7 +13,7 @@ This extension serves as a bridge between your web application and WhatsApp Web.
 ![How it works](https://raw.githubusercontent.com/naranarethiya/whatsapp-web-interaction-suite/main/doc/how-it-works.png "How it works")
 
 ## How to use
-This extension hasn't been published on the Chrome Web Store yet. Therefore, you'll need to manually clone this repository and install it as an unpacked extension.
+Install google chrome extension from https://chromewebstore.google.com/detail/agloikcgimfolhlkhfaachhialielpon
 
 After installation, your web application can access the functions provided by this extension.
 

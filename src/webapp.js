@@ -10,10 +10,12 @@ window.whatsappWebSuite.sendTextMessage = function(mobile, text) {
     };
 
     if(!isValidMobile(mobile)) {
+        console.error("Invalid mobile number. Use only numbers, no spaces or special characters, and include the country code.");
         return triggerMessageResponse("Mobile number is not valid", false, message);
     }
 
     if(isEmptyString(text)) {
+        console.error("Text is required.");
         return triggerMessageResponse("Text is required.", false, message);
     }
 
