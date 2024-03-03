@@ -36,10 +36,12 @@ window.whatsappWebSuite.sendUrlMediaMessage = function(mobile, url, text) {
     };
 
     if(!isValidMobile(mobile)) {
+        console.error("Mobile number is not valid");
         return triggerMessageResponse( "Mobile number is not valid", false, message);
     }
 
     if(!isURL(url)) {
+        console.error("URL is not valid URL.");
         return triggerMessageResponse("URL is not valid URL.", false, message);
     }
 
@@ -61,6 +63,7 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
     };
 
     if(!isValidMobile(mobile)) {
+        console.error("Mobile number is not valid");
         return triggerMessageResponse( "Mobile number is not valid", false, message);
     }
 
@@ -69,10 +72,12 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
     }
 
     if(isEmptyString(mime)) {
+        console.error("mime is required.");
         return triggerMessageResponse("mime is required.", false, message);
     }
 
     if(isEmptyString(filename)) {
+        console.error("filename is required.");
         return triggerMessageResponse("filename is required.", false, message);
     }
 
