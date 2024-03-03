@@ -34,7 +34,7 @@ window.whatsappWebSuite.sendBase64Message(
 )
 ```
 
-When sending a message, ensure the mobile number includes the country code. For instance, in India, the country code is 91, so a number might appear as 918879331633.
+When sending a message, ensure the mobile number includes the country code, without any space or special characters. For instance, in India, the country code is 91, so a number might appear as **918879331633**.
 
 You can include either emojis or plain text in your message.
 
