@@ -1,7 +1,7 @@
 {
     "manifest_version":3,
     "name":"WhatsApp Web Bridge",
-    "version":"0.1",
+    "version":"3.0.2",
     "description": "Seamlessly integrate WhatsApp messaging into web applications. Send messages from your web apps directly to WhatsApp Web.",
     "permissions":[
         "tabs"
