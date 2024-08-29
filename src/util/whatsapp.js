@@ -1,6 +1,6 @@
 let interval = null;
 interval = setInterval(function() {
-    if(window.mR === undefined) {
+    if(window?.Store?.AppState === undefined) {
         console.log("trying to load events")
         setWindowStore();
     }

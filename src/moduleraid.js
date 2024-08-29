@@ -21,7 +21,7 @@ const moduleRaid = function () {
   // }
 
   fillModuleArray = function() {
-    if (parseFloat(window.Debug.VERSION) < 2.3) {
+    if (parseFloat(window?.Debug?.VERSION) < 2.3) {
       (window.webpackChunkbuild || window.webpackChunkwhatsapp_web_client).push([
         [moduleRaid.mID], {}, function(e) {
           Object.keys(e.m).forEach(function(mod) {
