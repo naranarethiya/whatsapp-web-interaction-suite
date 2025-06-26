@@ -342,9 +342,9 @@ async function sendFileMessage() {
 // Initialize popup
 document.addEventListener('DOMContentLoaded', function() {
     // Set default values for testing
-    document.getElementById('textMobile').value = '918879331463';
-    document.getElementById('urlMobile').value = '918879331463';
-    document.getElementById('fileMobile').value = '918879331463';
+    document.getElementById('textMobile').value = '';
+    document.getElementById('urlMobile').value = '';
+    document.getElementById('fileMobile').value = '';
     
     // Add event listeners for tabs
     const tabs = document.querySelectorAll('.tab');
