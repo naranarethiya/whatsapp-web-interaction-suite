@@ -1,0 +1,131 @@
+name: Release Chrome Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 3.0.4)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes/changelog'
+        required: true
+        type: string
+      is_draft:
+        description: 'Publish as draft (for review before going live)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Validate version format
+      run: |
+        if [[ ! "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Error: Version must be in format x.y.z (e.g., 3.0.4)"
+          exit 1
+        fi
+    
+    - name: Update manifest version
+      run: |
+        sed -i 's/"version":"[^"]*"/"version":"${{ github.event.inputs.version }}"/' manifest.json
+        echo "Updated manifest.json version to ${{ github.event.inputs.version }}"
+    
+    - name: Verify manifest update
+      run: |
+        echo "Current manifest.json version:"
+        grep '"version"' manifest.json
+    
+    - name: Create extension package
+      run: |
+        # Create a clean build directory
+        mkdir -p build
+        
+        # Copy all necessary files to build directory
+        cp -r src/ build/
+        cp manifest.json build/
+        cp icon-128.png build/
+        cp popup.html build/
+        cp index.html build/
+        
+        # Create zip file for Chrome Web Store
+        cd build
+        zip -r ../extension-${{ github.event.inputs.version }}.zip .
+        cd ..
+        
+        echo "Extension package created: extension-${{ github.event.inputs.version }}.zip"
+        ls -la extension-${{ github.event.inputs.version }}.zip
+    
+    - name: Upload to Chrome Web Store
+      env:
+        CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+        CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+        CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+      run: |
+        # Install chrome-webstore-upload-cli
+        npm install -g chrome-webstore-upload-cli
+        
+        # Upload to Chrome Web Store
+        if [[ "${{ github.event.inputs.is_draft }}" == "true" ]]; then
+          echo "Uploading as draft..."
+          chrome-webstore-upload upload \
+            --source extension-${{ github.event.inputs.version }}.zip \
+            --extension-id $CHROME_EXTENSION_ID \
+            --client-id $CHROME_CLIENT_ID \
+            --client-secret $CHROME_CLIENT_SECRET \
+            --refresh-token $CHROME_REFRESH_TOKEN
+        else
+          echo "Uploading and publishing..."
+          chrome-webstore-upload upload \
+            --source extension-${{ github.event.inputs.version }}.zip \
+            --extension-id $CHROME_EXTENSION_ID \
+            --client-id $CHROME_CLIENT_ID \
+            --client-secret $CHROME_CLIENT_SECRET \
+            --refresh-token $CHROME_REFRESH_TOKEN \
+            --auto-publish
+        fi
+    
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        release_name: Release v${{ github.event.inputs.version }}
+        body: |
+          ## What's Changed
+          ${{ github.event.inputs.release_notes }}
+          
+          ## Installation
+          - Install from [Chrome Web Store](https://chrome.google.com/webstore/detail/your-extension-id)
+          - Or download the extension package from the assets below
+          
+          ## Files
+          - `extension-${{ github.event.inputs.version }}.zip` - Chrome extension package
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./extension-${{ github.event.inputs.version }}.zip
+        asset_name: extension-${{ github.event.inputs.version }}.zip
+        asset_content_type: application/zip
+    
+    - name: Commit version update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add manifest.json
+        git commit -m "Bump version to ${{ github.event.inputs.version }}" || exit 0
+        git push 
