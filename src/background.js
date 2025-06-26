@@ -24,7 +24,7 @@ async function sendWhatsappMessage(msg, sendResponse) {
         text: msg.text,
         receiver: msg.mobile,
         internalOptions: {},
-        uid: generateUniqueId(),
+        uid: msg.uid || generateUniqueId(),
     };
 
     try {

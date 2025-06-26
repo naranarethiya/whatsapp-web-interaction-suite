@@ -15,7 +15,7 @@ window.addEventListener("message", async (event) => {
                 url: event.data.url ? event.data.url : '',
                 base64Data: event.data.media ? event.data.media.data : '',
                 mime: event.data.media ? event.data.media.mime : '',
-            });
+            }, event.data.uid);
         }
         else {
             triggerMessageResponse(response.response, response.success, {
@@ -24,7 +24,7 @@ window.addEventListener("message", async (event) => {
                 url: event.data.url ? event.data.url : '',
                 base64Data: event.data.media ? event.data.media.data : '',
                 mime: event.data.media ? event.data.media.mime : '',
-            });
+            }, event.data.uid);
         }
     }
 });
@@ -38,8 +38,8 @@ document.addEventListener(responseEvent, (e) => {
 
 
 const sendResponseEvent = 'whatsappSendResponse';
-function triggerMessageResponse(response, isSuccess, message) {
-    let data = { message: message, success: isSuccess, response: response };
+function triggerMessageResponse(response, isSuccess, message, uid = null) {
+    let data = { message: message, success: isSuccess, response: response, uid: uid };
     document.dispatchEvent(new CustomEvent(sendResponseEvent,  { detail: data }));
 }
 

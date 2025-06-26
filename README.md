@@ -18,20 +18,32 @@ Install google chrome extension from https://chromewebstore.google.com/detail/ag
 After installation, your web application can access the functions provided by this extension.
 
 ```javascript
-// Send text message
-window.whatsappWebSuite.sendTextMessage(
-	mobile, 
-	message
-);
+// Send text message (Promise-based)
+window.whatsappWebSuite.sendTextMessage(mobile, message)
+    .then(response => {
+        console.log('Message sent successfully:', response);
+    })
+    .catch(error => {
+        console.error('Failed to send message:', error);
+    });
 
-// Send Media message
-window.whatsappWebSuite.sendBase64Message(
-	mobile, 
-	base64Data, 
-	mimeType, 
-	filename, 
-	message
-)
+// Send Media message (Promise-based)
+window.whatsappWebSuite.sendBase64Message(mobile, base64Data, mimeType, filename, message)
+    .then(response => {
+        console.log('Media sent successfully:', response);
+    })
+    .catch(error => {
+        console.error('Failed to send media:', error);
+    });
+
+// Send URL Media message (Promise-based)
+window.whatsappWebSuite.sendUrlMediaMessage(mobile, url, message)
+    .then(response => {
+        console.log('URL media sent successfully:', response);
+    })
+    .catch(error => {
+        console.error('Failed to send URL media:', error);
+    });
 ```
 
 When sending a message, ensure the mobile number includes the country code, without any space or special characters. For instance, in India, the country code is 91, so a number might appear as **918879331633**.
@@ -40,18 +52,53 @@ You can include either emojis or plain text in your message.
 
 To send an image or video, utilize the `sendBase64Message` function. You must provide the base64-encoded file data, MIME type, and the filename you want displayed on the WhatsApp screen.
 
-Listen for the `whatsappSendResponse` event to check the status of the message you've sent.
+## Modern Promise-based API (Recommended)
+
+All functions now return promises for better async handling:
 
 ```javascript
-document.addEventListener('whatsappSendResponse', function(e, data) {
+// Using async/await (modern approach)
+try {
+    const response = await window.whatsappWebSuite.sendTextMessage(mobile, message);
+    console.log('Success:', response);
+} catch (error) {
+    console.error('Error:', error);
+}
+```
+
+## Legacy Event-based API (Still Supported)
+
+For backward compatibility, you can still use the event-based approach:
+
+```javascript
+// Send message (legacy way)
+window.whatsappWebSuite.sendTextMessage(mobile, message);
+
+// Listen for response (legacy way)
+document.addEventListener('whatsappSendResponse', function(e) {
 	if(e.detail.success) {
 		// handle success 
 	}
 	else {
 		// handle fail
 	}
-})
+});
 ```
+
+**Note:** Both APIs work simultaneously - existing code will continue to work without changes.
+
+## Testing with Extension Popup
+
+The extension popup now includes a testing interface with both API modes:
+
+1. **Click the extension icon** in your browser toolbar
+2. **Select API Mode**: Choose between "Promise-based API (Modern)" or "Legacy API (Event-based)"
+3. **Enter mobile number** (with country code, e.g., 918879331633)
+4. **Enter your message**
+5. **Click Send** to test the selected API mode
+
+The popup will show real-time status updates and log responses to the browser console for debugging.
+
 ### Notes
 - This extension sends messages via WhatsApp Web, so ensure that WhatsApp Web is open in one of your browser tabs.
 - Please note that this extension has not been tested for bulk messaging and may not be suitable for such use cases.
