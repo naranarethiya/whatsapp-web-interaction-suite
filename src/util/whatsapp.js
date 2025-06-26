@@ -135,6 +135,7 @@ window.WWebJS.sendWhatsappMessage = async (receiver, text, options, sendSeen, ui
 
         document.dispatchEvent(new CustomEvent(responseEvent, { detail:  {
             success: true,
+            response: "Message sent successfully",
             uid: uid,      
         }}));
 
@@ -143,6 +144,7 @@ window.WWebJS.sendWhatsappMessage = async (receiver, text, options, sendSeen, ui
 
         document.dispatchEvent(new CustomEvent(responseEvent, { detail:  {
             success: false,
+            response: error.message || "Error while sending message",
             uid: uid,
         }}));
     }

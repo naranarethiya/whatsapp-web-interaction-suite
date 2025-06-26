@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Web Bridge Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #25D366;
+            text-align: center;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, textarea, button, select {
+            margin: 5px 0;
+            padding: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #25D366;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #128C7E;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            color: #2e7d32;
+        }
+        .error {
+            color: #c62828;
+        }
+        .info {
+            color: #1976d2;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 WhatsApp Web Bridge Test</h1>
+        <p style="text-align: center; color: #666;">
+            Make sure WhatsApp Web is open in another tab and you're logged in.
+        </p>
+
+        <!-- Promise-based API Test -->
+        <div class="section">
+            <h2>🔥 Promise-based API (Modern)</h2>
+            <input type="text" id="promiseMobile" placeholder="Mobile number (with country code, e.g., 918879331633)" value="918879331463">
+            <textarea id="promiseMessage" placeholder="Your message" rows="3">Hello! This is a test message using Promise API 🚀</textarea>
+            <button onclick="sendMessagePromise()" id="promiseBtn">Send Message (Promise)</button>
+            <div id="promiseLog" class="log"></div>
+        </div>
+
+        <!-- Legacy Event-based API Test -->
+        <div class="section">
+            <h2>⚡ Legacy Event-based API (Backward Compatibility)</h2>
+            <input type="text" id="eventMobile" placeholder="Mobile number (with country code, e.g., 918879331633)" value="918879331463">
+            <textarea id="eventMessage" placeholder="Your message" rows="3">Hello! This is a test message using Legacy API 📱</textarea>
+            <button onclick="sendMessageEvent()" id="eventBtn">Send Message (Event)</button>
+            <div id="eventLog" class="log"></div>
+        </div>
+
+        <!-- Media Test -->
+        <div class="section">
+            <h2>📷 Media Message Test</h2>
+            <input type="text" id="mediaMobile" placeholder="Mobile number" value="918879331463">
+            <textarea id="mediaMessage" placeholder="Caption for media" rows="2">Check out this image! 📸</textarea>
+            <input type="file" id="mediaFile">
+            <button onclick="sendMediaMessage()" id="mediaBtn">Send Media (Promise)</button>
+            <div id="mediaLog" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to log messages
+        function log(elementId, message, type = 'info') {
+            const logElement = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logElement.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Check if extension is loaded
+        function checkExtension() {
+            if (typeof window.whatsappWebSuite === 'undefined') {
+                document.body.innerHTML = `
+                    <div class="container">
+                        <h1 style="color: red;">❌ WhatsApp Web Bridge Extension Not Found!</h1>
+                        <p>Please make sure:</p>
+                        <ul>
+                            <li>The extension is installed</li>
+                            <li>The extension is enabled</li>
+                            <li>You've refreshed this page after installing</li>
+                        </ul>
+                    </div>
+                `;
+                return false;
+            }
+            return true;
+        }
+
+        // Promise-based API test
+        async function sendMessagePromise() {
+            if (!checkExtension()) return;
+            
+            const mobile = document.getElementById('promiseMobile').value;
+            const message = document.getElementById('promiseMessage').value;
+            const btn = document.getElementById('promiseBtn');
+
+            if (!mobile || !message) {
+                log('promiseLog', 'Please enter both mobile number and message', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            log('promiseLog', 'Sending message using Promise API...', 'info');
+
+            try {
+                const response = await window.whatsappWebSuite.sendTextMessage(mobile, message);
+                log('promiseLog', `✅ Success: ${response.response}`, 'success');
+                log('promiseLog', `📋 Full response: ${JSON.stringify(response, null, 2)}`, 'info');
+                console.log('Promise API Response:', response);
+            } catch (error) {
+                log('promiseLog', `❌ Error: ${error.response || error.message}`, 'error');
+                log('promiseLog', `📋 Full error: ${JSON.stringify(error, null, 2)}`, 'error');
+                console.error('Promise API Error:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Message (Promise)';
+            }
+        }
+
+        // Legacy Event-based API test
+        function sendMessageEvent() {
+            if (!checkExtension()) return;
+            
+            const mobile = document.getElementById('eventMobile').value;
+            const message = document.getElementById('eventMessage').value;
+            const btn = document.getElementById('eventBtn');
+
+            if (!mobile || !message) {
+                log('eventLog', 'Please enter both mobile number and message', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            log('eventLog', 'Sending message using Legacy API...', 'info');
+            
+            // Send message (legacy way)
+            window.whatsappWebSuite.sendTextMessage(mobile, message);
+            
+            // Reset button after a short delay
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = 'Send Message (Event)';
+            }, 2000);
+        }
+
+        // Media message test
+        async function sendMediaMessage() {
+            if (!checkExtension()) return;
+            
+            const mobile = document.getElementById('mediaMobile').value;
+            const message = document.getElementById('mediaMessage').value;
+            const fileInput = document.getElementById('mediaFile');
+            const btn = document.getElementById('mediaBtn');
+
+            if (!mobile || !message) {
+                log('mediaLog', 'Please enter mobile number and caption', 'error');
+                return;
+            }
+
+            if (!fileInput.files.length) {
+                log('mediaLog', 'Please select a file', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            log('mediaLog', `📁 Processing file: ${file.name} (${file.type}, ${(file.size/1024).toFixed(2)}KB)`, 'info');
+
+            try {
+                // Convert file to base64
+                log('mediaLog', '🔄 Converting file to base64...', 'info');
+                const dataUrl = await fileToBase64(file);
+                
+                // Extract raw base64 data (same as your application format)
+                const base64Data = dataUrl.replace(/^data:[^;]+;base64,/, '');
+                
+                log('mediaLog', `✅ File converted to base64 (${base64Data.length} chars raw)`, 'info');
+                log('mediaLog', `📋 Raw base64 preview: ${base64Data.substring(0, 50)}...`, 'info');
+                
+                // Validate inputs
+                log('mediaLog', `📱 Mobile: ${mobile}`, 'info');
+                log('mediaLog', `📝 Caption: ${message}`, 'info');
+                log('mediaLog', `🎭 MIME: ${file.type}`, 'info');
+                log('mediaLog', `📄 Filename: ${file.name}`, 'info');
+                
+                log('mediaLog', '🚀 Calling sendBase64Message with raw base64 (like your app)...', 'info');
+                const response = await window.whatsappWebSuite.sendBase64Message(
+                    mobile, 
+                    base64Data, // Now sending raw base64, not data URL
+                    file.type, 
+                    file.name, 
+                    message
+                );
+                
+                log('mediaLog', `✅ Media sent successfully: ${response.response}`, 'success');
+                log('mediaLog', `📋 Full response: ${JSON.stringify(response, null, 2)}`, 'info');
+                console.log('Media API Response:', response);
+            } catch (error) {
+                log('mediaLog', `❌ Error: ${error.response || error.message}`, 'error');
+                log('mediaLog', `📋 Full error details: ${JSON.stringify(error, null, 2)}`, 'error');
+                console.error('Media API Error:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Media (Promise)';
+            }
+        }
+
+        // Helper function to convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Listen for legacy event responses
+        document.addEventListener('whatsappSendResponse', function(e) {
+            const response = e.detail;
+            if (response.success) {
+                log('eventLog', `✅ Success: ${response.response}`, 'success');
+            } else {
+                log('eventLog', `❌ Error: ${response.response}`, 'error');
+            }
+            log('eventLog', `📋 Full response: ${JSON.stringify(response, null, 2)}`, 'info');
+            console.log('Event API Response:', response);
+        });
+
+        // Initialize
+        window.addEventListener('load', function() {
+            if (checkExtension()) {
+                log('promiseLog', '🚀 Promise API ready for testing', 'success');
+                log('eventLog', '⚡ Legacy API ready for testing', 'success');
+                log('mediaLog', '📷 Media API ready for testing', 'success');
+            }
+        });
+    </script>
+</body>
+</html> 

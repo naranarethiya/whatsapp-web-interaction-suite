@@ -1,11 +1,343 @@
-<h3>Send WA Message</h3>
-<div>
-    <label>Mobile Number</label>
-    <input type="number" name="mobile" id="mobile">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Web Bridge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            width: 400px;
+            height: 600px;
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: #333;
+        }
+        
+        .header {
+            background: #075E54;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .container {
+            background: white;
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            background: #f0f0f0;
+            border: none;
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #25D366;
+            border-bottom: 2px solid #25D366;
+        }
+        
+        .tab:hover {
+            background: #e8e8e8;
+        }
+        
+        .tab.active:hover {
+            background: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #25D366;
+            box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #128C7E;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+            background: #fafafa;
+        }
+        
+        .file-input:hover {
+            border-color: #25D366;
+            background: #f0fff0;
+        }
+        
+        .file-input input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .file-info {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #666;
+            display: none;
+        }
+        
+        .icon {
+            margin-right: 5px;
+        }
+        
+        .url-preview {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #25D366;
+            display: none;
+        }
+        
+        .url-preview img {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 4px;
+        }
+        
+        .url-preview video {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 4px;
+        }
+        
+        .small-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📱 WhatsApp Web Bridge</h1>
+        <p>Send messages directly to WhatsApp</p>
+    </div>
+    
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="text">
+                <span class="icon">💬</span>Text
+            </button>
+            <button class="tab" data-tab="url">
+                <span class="icon">🔗</span>URL Media
+            </button>
+            <button class="tab" data-tab="file">
+                <span class="icon">📎</span>File Upload
+            </button>
+        </div>
+        
+        <!-- Text Message Tab -->
+        <div id="text-tab" class="tab-content active">
+            <div class="form-group">
+                <label for="textMobile">📞 Mobile Number</label>
+                <input type="tel" id="textMobile" placeholder="e.g., 918879331633" />
+                <div class="small-text">Include country code (e.g., 91 for India)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="textMessage">💬 Message</label>
+                <textarea id="textMessage" placeholder="Type your message here..." rows="4"></textarea>
+            </div>
 
-    <label>Message</label>
-    <textarea name="text" rows="4" style="width: 100%;" id="text"></textarea>
+            <div id="textStatus" class="status"></div>
+            
+            <button id="textBtn">
+                <span class="icon">🚀</span>Send Text Message
+            </button>
+        </div>
+        
+        <!-- URL Media Tab -->
+        <div id="url-tab" class="tab-content">
+            <div class="form-group">
+                <label for="urlMobile">📞 Mobile Number</label>
+                <input type="tel" id="urlMobile" placeholder="e.g., 918879331633" />
+            </div>
+            
+            <div class="form-group">
+                <label for="urlMessage">💬 Caption (Optional)</label>
+                <textarea id="urlMessage" placeholder="Add a caption for your media..." rows="2"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="mediaUrl">🔗 Media URL</label>
+                <input type="url" id="mediaUrl" placeholder="https://example.com/image.jpg" />
+                <div class="small-text">Direct link to image, video, or document</div>
+            </div>
+            
+            <div id="urlPreview" class="url-preview"></div>
+            
+            <div id="urlStatus" class="status"></div>
 
-    <input type="button" value="Send" id="sendButton" style="float: right; margin-top: 10px;">
-</div>
-<script src="src/popup.js"></script>
+            <button id="urlBtn">
+                <span class="icon">🚀</span>Send URL Media
+            </button>
+        </div>
+        
+        <!-- File Upload Tab -->
+        <div id="file-tab" class="tab-content">
+            <div class="form-group">
+                <label for="fileMobile">📞 Mobile Number</label>
+                <input type="tel" id="fileMobile" placeholder="e.g., 918879331633" />
+            </div>
+            
+            <div class="form-group">
+                <label for="fileMessage">💬 Caption (Optional)</label>
+                <textarea id="fileMessage" placeholder="Add a caption for your file..." rows="2"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>📎 Select File</label>
+                <div class="file-input-wrapper">
+                    <div class="file-input">
+                        <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx" />
+                        <span>Click to select file or drag & drop</span>
+                    </div>
+                </div>
+                <div class="small-text">Supports: Images, Videos, Audio, PDF, Documents</div>
+            </div>
+            
+            <div id="fileInfo" class="file-info"></div>
+            
+            <div id="fileStatus" class="status"></div>
+            <button id="fileBtn" disabled>
+                <span class="icon">🚀</span>Send File
+            </button>
+        </div>
+    </div>
+    
+    <script src="src/popup.js"></script>
+</body>
+</html>
