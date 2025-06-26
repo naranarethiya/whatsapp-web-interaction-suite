@@ -87,18 +87,6 @@ document.addEventListener('whatsappSendResponse', function(e) {
 
 **Note:** Both APIs work simultaneously - existing code will continue to work without changes.
 
-## Testing with Extension Popup
-
-The extension popup now includes a testing interface with both API modes:
-
-1. **Click the extension icon** in your browser toolbar
-2. **Select API Mode**: Choose between "Promise-based API (Modern)" or "Legacy API (Event-based)"
-3. **Enter mobile number** (with country code, e.g., 918879331633)
-4. **Enter your message**
-5. **Click Send** to test the selected API mode
-
-The popup will show real-time status updates and log responses to the browser console for debugging.
-
 ### Notes
 - This extension sends messages via WhatsApp Web, so ensure that WhatsApp Web is open in one of your browser tabs.
 - Please note that this extension has not been tested for bulk messaging and may not be suitable for such use cases.
