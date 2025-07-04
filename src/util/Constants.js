@@ -1,8 +1,7 @@
-'use strict';
+// Using ES6 export syntax
+export const WhatsWebURL = 'https://web.whatsapp.com/';
 
-exports.WhatsWebURL = 'https://web.whatsapp.com/';
-
-exports.DefaultOptions = {
+export const DefaultOptions = {
     puppeteer: {
         headless: true,
         defaultViewport: null
@@ -26,7 +25,7 @@ exports.DefaultOptions = {
  * @readonly
  * @enum {number}
  */
-exports.Status = {
+export const Status = {
     INITIALIZING: 0,
     AUTHENTICATING: 1,
     READY: 3
@@ -37,7 +36,7 @@ exports.Status = {
  * @readonly
  * @enum {string}
  */
-exports.Events = {
+export const Events = {
     AUTHENTICATED: 'authenticated',
     AUTHENTICATION_FAILURE: 'auth_failure',
     READY: 'ready',
@@ -70,7 +69,7 @@ exports.Events = {
  * @readonly
  * @enum {string}
  */
-exports.MessageTypes = {
+export const MessageTypes = {
     TEXT: 'chat',
     AUDIO: 'audio',
     VOICE: 'ptt',
@@ -113,7 +112,7 @@ exports.MessageTypes = {
  * @readonly
  * @enum {string}
  */
-exports.GroupNotificationTypes = {
+export const GroupNotificationTypes = {
     ADD: 'add',
     INVITE: 'invite',
     REMOVE: 'remove',
@@ -130,7 +129,7 @@ exports.GroupNotificationTypes = {
  * @readonly
  * @enum {string}
  */
-exports.ChatTypes = {
+export const ChatTypes = {
     SOLO: 'solo',
     GROUP: 'group',
     UNKNOWN: 'unknown'
@@ -141,7 +140,7 @@ exports.ChatTypes = {
  * @readonly
  * @enum {string}
  */
-exports.WAState = {
+export const WAState = {
     CONFLICT: 'CONFLICT',
     CONNECTED: 'CONNECTED',
     DEPRECATED_VERSION: 'DEPRECATED_VERSION',
@@ -161,11 +160,38 @@ exports.WAState = {
  * @readonly
  * @enum {number}
  */
-exports.MessageAck = {
+export const MessageAck = {
     ACK_ERROR: -1,
     ACK_PENDING: 0,
     ACK_SERVER: 1,
     ACK_DEVICE: 2,
     ACK_READ: 3,
     ACK_PLAYED: 4,
+};
+
+/**
+ * Custom Action Strings for message passing between different parts of the extension.
+ * These are used as the `action` property in messages.
+ * @readonly
+ * @enum {string}
+ */
+export const ExtensionActions = {
+    WEBAPP_TO_CONTENT: 'webAppToContentjs',
+    CONTENT_TO_BACKGROUND: 'contentjsToBackground',
+    BACKGROUND_TO_WHATSAPP_TAB: 'backgroundToWhatsapp',
+};
+
+/**
+ * Custom Event Names for DOM-based communication between scripts,
+ * particularly between content scripts and MAIN world scripts, or content scripts and web pages.
+ * @readonly
+ * @enum {string}
+ */
+export const ExtensionEvents = {
+    // Event from whatsappContent.js (isolated) to util/whatsapp.js (MAIN world on WA page)
+    CONTENT_SCRIPT_TO_WHATSAPP_MAIN_WORLD: 'whatsappContentToWhatsappJs',
+    // Event from util/whatsapp.js (MAIN world on WA page) back to whatsappContent.js (isolated)
+    WHATSAPP_MAIN_WORLD_TO_CONTENT_SCRIPT_RESPONSE: 'WhatsappjsResponse',
+    // Event from content.js (on user's web app page) to the web app itself
+    CONTENT_SCRIPT_TO_WEBAPP_RESPONSE: 'whatsappSendResponse',
 };
