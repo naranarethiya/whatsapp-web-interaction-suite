@@ -11,11 +11,22 @@ interval = setInterval(function() {
 }, 5000);
 
 
-/** received event from content.js to send final message */
-document.addEventListener('whatsappContentToWhatsappJs', function(e, data) {
-    console.log("whatsappContentToWhatsappJs");
-    console.log(e.detail);
-    window.WWebJS.sendWhatsappMessage(e.detail.receiver, e.detail.text, e.detail.internalOptions, false, e.detail.uid);
+/**
+ * This script is injected into the MAIN world of the WhatsApp Web page.
+ * It listens for requests (forwarded by whatsappContent.js) to send messages
+ * and uses WhatsApp Web's internal functions (like WWebJS, Store) to perform actions.
+ * After attempting an action, it dispatches a response event back to whatsappContent.js.
+ */
+
+/**
+ * Received event from whatsappContent.js (content script in isolated world)
+ * to send the final message using WhatsApp Web's internal functions.
+ * Event name corresponds to ExtensionEvents.CONTENT_SCRIPT_TO_WHATSAPP_MAIN_WORLD.
+ */
+document.addEventListener('whatsappContentToWhatsappJs', function(e) {
+    console.log("'whatsappContentToWhatsappJs' event received in util/whatsapp.js (MAIN world):", e.detail);
+    const { receiver, text, internalOptions, uid } = e.detail;
+    window.WWebJS.sendWhatsappMessage(receiver, text, internalOptions, false, uid);
 });
 
 
@@ -125,27 +136,46 @@ function setWindowStore() {
 
 window.WWebJS = {};
 
-const responseEvent = 'WhatsappjsResponse';
+// Event name for dispatching response back to whatsappContent.js (content script in isolated world).
+// This event carries the outcome (success/failure) of the message sending attempt.
+// Corresponds to ExtensionEvents.WHATSAPP_MAIN_WORLD_TO_CONTENT_SCRIPT_RESPONSE.
+const responseEventToContentScript = 'WhatsappjsResponse';
+
+/**
+ * Sends a message using WhatsApp Web's internal functions and then dispatches
+ * an event with the outcome.
+ * @param {string} receiver - The recipient's phone number.
+ * @param {string} text - The message text (or caption for media).
+ * @param {object} options - Additional options, including media attachment.
+ * @param {boolean} sendSeen - Whether to send a seen receipt (usually false).
+ * @param {string} uid - Unique ID for correlating the response.
+ */
 window.WWebJS.sendWhatsappMessage = async (receiver, text, options, sendSeen, uid) => {
     try {
         const chatWid = window.Store.WidFactory.createWid(receiver+'@c.us');
         const chat = await window.Store.Chat.find(chatWid);
-        const msg = await window.WWebJS.sendMessage(chat, text, options, sendSeen);
-        console.log("window.WWebJS.sendMessage response:", msg)
+        const msg = await window.WWebJS.sendMessage(chat, text, options, sendSeen); // This is the core WhatsApp Web API call
+        console.log("WWebJS.sendMessage (actual WA send) response in MAIN world:", msg);
 
-        document.dispatchEvent(new CustomEvent(responseEvent, { detail:  {
-            success: true,
-            response: "Message sent successfully",
-            uid: uid,      
-        }}));
+        // Dispatch success event to whatsappContent.js
+        document.dispatchEvent(new CustomEvent(responseEventToContentScript, {
+            detail: {
+                success: true,
+                response: "Message sent successfully via MAIN world.",
+                uid: uid,
+            }
+        }));
 
     } catch (error) {
-        console.error("window.WWebJS.sendMessage error:", error)
+        console.error("Error in WWebJS.sendWhatsappMessage (MAIN world):", error);
 
-        document.dispatchEvent(new CustomEvent(responseEvent, { detail:  {
-            success: false,
-            response: error.message || "Error while sending message",
-            uid: uid,
+        // Dispatch error event to whatsappContent.js
+        document.dispatchEvent(new CustomEvent(responseEventToContentScript, {
+            detail: {
+                success: false,
+                response: error.message || "Unknown error occurred while sending message in MAIN world.",
+                uid: uid,
+            }
         }}));
     }
 }

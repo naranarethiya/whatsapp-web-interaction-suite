@@ -2,9 +2,11 @@
  *  this listening message from "website app" on same tab of web app
  * */
 window.addEventListener("message", async (event) => {
+    // Action string from webapp.js, corresponds to ExtensionActions.WEBAPP_TO_CONTENT
     if(event.data.action == 'webAppToContentjs') {
         console.log("Received event in content.js", event)
         // send message to background.js
+        // Action string, corresponds to ExtensionActions.CONTENT_TO_BACKGROUND
         event.data.action = 'contentjsToBackground';
         const response = await chrome.runtime.sendMessage(event.data);
 
@@ -30,13 +32,12 @@ window.addEventListener("message", async (event) => {
 });
 
 
-/** received event from whatsapp.js to receive response */
-const responseEvent = 'WhatsappjsResponse';
-document.addEventListener(responseEvent, (e) => {
-    whatsappTabListenerSendResponse[e.detail.uid](e.detail)
-});
+// Removed the incorrect event listener for 'WhatsappjsResponse'.
+// The response will be handled by the callback of chrome.runtime.sendMessage
+// which is already in place above.
 
-
+// Event name for dispatching response to the web app,
+// corresponds to ExtensionEvents.CONTENT_SCRIPT_TO_WEBAPP_RESPONSE
 const sendResponseEvent = 'whatsappSendResponse';
 function triggerMessageResponse(response, isSuccess, message, uid = null) {
     let data = { message: message, success: isSuccess, response: response, uid: uid };

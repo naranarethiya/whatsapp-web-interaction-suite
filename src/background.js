@@ -1,14 +1,25 @@
+import { ExtensionActions } from './util/Constants.js';
+
 /** Listen port.postMessage from content.js */
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === 'contentjsToBackground') {
+    if (request.action === ExtensionActions.CONTENT_TO_BACKGROUND) {
         console.log("BG Received Message", request);
         sendWhatsappMessage(request, sendResponse);
         return true;
     }
 });
 
-/** trigger event on whatsapp tab */
+/**
+ * Handles the request to send a WhatsApp message.
+ * It queries for the WhatsApp Web tab, prepares message data (including media if any),
+ * sends the message to the content script on the WhatsApp Web tab (whatsappContent.js),
+ * and manages responses and errors.
+ * @param {object} msg - The message object received from content.js.
+ * @param {function} sendResponse - Callback function to send a response back to content.js.
+ */
 async function sendWhatsappMessage(msg, sendResponse) {
+    // Query for the active WhatsApp Web tab.
+    // The URL 'https://web.whatsapp.com/*' could be moved to Constants.js if desired.
     const [tab] = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*'});
 
     if(!tab) {
@@ -20,7 +31,7 @@ async function sendWhatsappMessage(msg, sendResponse) {
     }
 
     let messageData = {
-        action: 'backgroundToWhatsapp',
+        action: ExtensionActions.BACKGROUND_TO_WHATSAPP_TAB,
         text: msg.text,
         receiver: msg.mobile,
         internalOptions: {},
@@ -48,16 +59,46 @@ async function sendWhatsappMessage(msg, sendResponse) {
             messageData.text = '';
         }
     
+        // chrome.tabs.sendMessage can fail if the tab was closed or the content script isn't there.
+        // The promise will be rejected, or response will be undefined and chrome.runtime.lastError will be set.
         const response = await chrome.tabs.sendMessage(tab.id, messageData);
-        console.log("Response in Background: ", response);
-    
-        sendResponse(response);   
+
+        if (chrome.runtime.lastError) {
+            // This case might occur if sendMessage callback-style was used,
+            // but with async/await, it usually throws an error caught below.
+            // Still, good to be aware of.
+            console.error("Error sending message to WhatsApp tab:", chrome.runtime.lastError.message);
+            sendResponse({
+                response: `Error communicating with WhatsApp tab: ${chrome.runtime.lastError.message}`,
+                success: false,
+            });
+        } else if (response === undefined) {
+            // This can happen if the content script doesn't call sendResponse
+            console.error("Undefined response from WhatsApp tab, possibly content script issue.");
+            sendResponse({
+                response: "Undefined response from WhatsApp tab. Content script might have an issue.",
+                success: false,
+            });
+        } else {
+            console.log("Response in Background: ", response);
+            sendResponse(response);
+        }
     } catch (error) {
-        console.log(error);
+        console.error("Error in sendWhatsappMessage:", error);
+        let errorMessage = "Error while sending message";
+        if (error.message) {
+            errorMessage += `: ${error.message}`;
+        }
+        // Check if the error is due to the tab not being available
+        if (error.message && (error.message.includes("No tab with id") || error.message.includes("Receiving end does not exist"))) {
+            errorMessage = "Failed to send message: WhatsApp tab may have been closed or is unresponsive.";
+        }
+
         sendResponse({
-            response : "Error while sending message",
+            response: errorMessage,
             success: false,
-            error: error,
+            // Avoid sending the full error object if it's not serializable or too large
+            errorDetail: error.message ? error.message : "Unknown error"
         });
     }
 }
