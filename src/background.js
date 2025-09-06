@@ -32,12 +32,12 @@ async function sendWhatsappMessage(msg, sendResponse) {
             messageData.internalOptions = {
                 linkPreview: true,
             };
-            messageData.internalOptions.attachment = await downloadMediaFromUrl(msg.url);
+            messageData.internalOptions.media = await downloadMediaFromUrl(msg.url);
             messageData.internalOptions.caption = msg.text,
             messageData.text = '';
         }
         else if(typeof msg.media == 'object') {
-            messageData.internalOptions.attachment = {
+            messageData.internalOptions.media = {
                 // data: msg.media.data.replace(/^data:[a-z]+\/[a-z]+;base64,/, ''),
                 data: msg.media.data,
                 mimetype: msg.media.mime, 
