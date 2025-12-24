@@ -104,23 +104,6 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
         return Promise.reject(errorResponse);
     }
 
-    // Auto-detect and convert base64 format
-    let processedBase64Data = base64Data;
-    
-    // Check if it's already in data URL format (data:mime/type;base64,xxxxx)
-    if (!base64Data.startsWith('data:')) {
-        // Clean and validate raw base64 data before converting
-        const cleanedBase64 = cleanBase64Data(base64Data);
-        processedBase64Data = `data:${mime};base64,${cleanedBase64}`;
-        console.log("Cleaned and converted raw base64 to data URL format");
-    }
-
-    if(!isBase64(processedBase64Data)) {
-        console.error("Invalid base64 Data format");
-        const errorResponse = triggerMessageResponse("Invalid base64 Data format", false, message);
-        return Promise.reject(errorResponse);
-    }
-
     if(isEmptyString(mime)) {
         console.error("mime is required.");
         const errorResponse = triggerMessageResponse("mime is required.", false, message);
@@ -140,16 +123,24 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
         pendingPromises.set(uid, { resolve, reject });
     });
 
-    // Always use cleaned base64 data for transmission
-    let finalBase64Data = base64Data;
-    if (!base64Data.startsWith('data:')) {
-        // For raw base64, use the cleaned version
-        finalBase64Data = cleanBase64Data(base64Data);
+    // Extract raw base64 data (single pass cleaning, no redundant validation)
+    let rawBase64Data;
+    if (base64Data.startsWith('data:')) {
+        // Extract base64 part from data URL
+        rawBase64Data = base64Data.replace(/^data:[^;]+;base64,/, '');
     } else {
-        // For data URLs, extract and clean the base64 part
-        const base64Part = base64Data.replace(/^data:[^;]+;base64,/, '');
-        finalBase64Data = cleanBase64Data(base64Part);
+        rawBase64Data = base64Data;
     }
+    
+    // Single pass cleaning - remove whitespace and ensure padding
+    rawBase64Data = rawBase64Data.replace(/\s/g, '');
+    const remainder = rawBase64Data.length % 4;
+    if (remainder) {
+        rawBase64Data += '='.repeat(4 - remainder);
+    }
+
+    // Calculate file size from base64 length (faster than decoding)
+    const estimatedFileSize = Math.floor(rawBase64Data.length * 0.75);
 
     window.postMessage({
         action: messageAction,
@@ -158,9 +149,9 @@ window.whatsappWebSuite.sendBase64Message = function(mobile, base64Data, mime, f
         uid: uid,
         media: {
             mime: mime,
-            data: finalBase64Data, // Use cleaned raw base64 data
+            data: rawBase64Data,
             filename: filename,
-            filesize: getDiskSizeFromBase64(processedBase64Data)
+            filesize: estimatedFileSize
         },
     }, "*");
 
@@ -203,27 +194,13 @@ function isBlob(data) {
     return data instanceof Blob;
 }
   
-// Check if the data contains Base64 data
+// Check if the data contains Base64 data - optimized for speed
 function isBase64(data) {
     if (typeof data !== 'string') return false;
     
-    // Check for data URL format
-    const base64Regex = /^data:(.+\/.+);base64,(.*)$/;
-    
-    if (!base64Regex.test(data)) return false;
-    
-    // Extract base64 part and validate it can be decoded
-    const base64Part = data.replace(/^data:[^;]+;base64,/, '');
-    
-    try {
-        // Try to clean and validate the base64 data
-        const cleaned = cleanBase64Data(base64Part);
-        atob(cleaned);
-        return true;
-    } catch (error) {
-        console.warn('Base64 validation failed but continuing anyway...', error.message);
-        return true; // Be forgiving - let it through and handle errors later
-    }
+    // Quick check for data URL format (don't validate the actual base64 content)
+    // This is much faster and the actual decoding will happen later anyway
+    return /^data:.+\/.+;base64,/.test(data);
 }
 
 function isURL(str) {
@@ -235,117 +212,65 @@ function isURL(str) {
     }
 }
 
-// Clean and validate base64 data to fix common encoding issues
+// Optimized base64 cleaning - minimal processing, skip unnecessary validation
+// The browser's native base64 decoder in fetch API will handle validation
 function cleanBase64Data(base64Data) {
-    // Remove any whitespace and newlines
+    // Fast path: if data looks valid, return immediately
+    if (!base64Data || typeof base64Data !== 'string') {
+        return base64Data;
+    }
+    
+    // Remove any whitespace and newlines (single pass)
     let cleaned = base64Data.replace(/\s/g, '');
     
     // Remove any data URL prefix if present
-    cleaned = cleaned.replace(/^data:[^;]+;base64,/, '');
+    if (cleaned.startsWith('data:')) {
+        cleaned = cleaned.replace(/^data:[^;]+;base64,/, '');
+    }
+    
+    // Only clean invalid characters if the data contains them
+    // This regex check is faster than always running replace
+    if (/[^A-Za-z0-9+/=]/.test(cleaned)) {
+        cleaned = cleaned.replace(/[^A-Za-z0-9+/=]/g, '');
+    }
     
     // Ensure proper base64 padding
-    while (cleaned.length % 4) {
-        cleaned += '=';
+    const remainder = cleaned.length % 4;
+    if (remainder) {
+        cleaned += '='.repeat(4 - remainder);
     }
     
-    // For large files, validate in chunks to avoid memory issues
-    if (cleaned.length > 100000) { // > ~75KB
-        console.log('Processing large base64 data in chunks...');
-        return validateLargeBase64(cleaned);
-    }
-    
-    // Test if the cleaned base64 is valid
-    try {
-        atob(cleaned);
-        return cleaned;
-    } catch (error) {
-        console.warn('Base64 validation failed, attempting to fix...');
-        
-        // Try to fix common issues
-        // Remove invalid characters (keep only valid base64 chars)
-        cleaned = cleaned.replace(/[^A-Za-z0-9+/=]/g, '');
-        
-        // Re-add padding if needed
-        while (cleaned.length % 4) {
-            cleaned += '=';
-        }
-        
-        // Test again
-        try {
-            atob(cleaned);
-            console.log('Base64 data successfully cleaned and validated');
-            return cleaned;
-        } catch (finalError) {
-            console.error('Unable to fix base64 data, using as-is:', finalError);
-            return base64Data; // Return original if all fixes fail
-        }
-    }
+    return cleaned;
 }
 
-// Validate large base64 data in chunks to avoid memory issues
+// Skip chunk validation for large files - it's redundant
+// The browser's native fetch API will validate when decoding
 function validateLargeBase64(base64Data) {
-    const chunkSize = 10000; // Process in 10KB chunks
-    let cleaned = base64Data;
+    // Just clean the data without expensive chunk-by-chunk validation
+    let cleaned = base64Data.replace(/[^A-Za-z0-9+/=]/g, '');
     
-    try {
-        // First, clean invalid characters
-        cleaned = cleaned.replace(/[^A-Za-z0-9+/=]/g, '');
-        
-        // Ensure proper padding
-        while (cleaned.length % 4) {
-            cleaned += '=';
-        }
-        
-        // Validate in chunks
-        for (let i = 0; i < cleaned.length; i += chunkSize) {
-            const chunk = cleaned.substring(i, i + chunkSize);
-            // Make sure chunk has proper padding for validation
-            let validationChunk = chunk;
-            if (i + chunkSize < cleaned.length) {
-                // For middle chunks, add padding for validation
-                while (validationChunk.length % 4) {
-                    validationChunk += '=';
-                }
-            }
-            
-            try {
-                atob(validationChunk);
-            } catch (chunkError) {
-                console.warn(`Chunk validation failed at position ${i}:`, chunkError.message);
-                // Continue processing other chunks
-            }
-        }
-        
-        console.log('Large base64 data successfully processed');
-        return cleaned;
-        
-    } catch (error) {
-        console.error('Large base64 processing failed:', error);
-        return base64Data; // Return original if all processing fails
+    // Ensure proper padding
+    const remainder = cleaned.length % 4;
+    if (remainder) {
+        cleaned += '='.repeat(4 - remainder);
     }
+    
+    return cleaned;
 }
 
+// Fast file size estimation from base64 (no decoding needed)
 function getDiskSizeFromBase64(base64Data) {
-    // Remove metadata prefix (e.g., 'data:image/png;base64,')
-    // Use more flexible regex to handle various MIME types
-    var base64WithoutPrefix = base64Data.replace(/^data:[^;]+;base64,/, '');
-  
-    try {
-        // Clean the base64 data before processing
-        var cleanedBase64 = cleanBase64Data(base64WithoutPrefix);
-        
-        // Decode base64 string to binary data
-        var binaryData = atob(cleanedBase64);
-        
-        // Calculate disk size in bytes
-        var diskSizeInBytes = binaryData.length;
-        
-        return diskSizeInBytes;
-    } catch (error) {
-        console.error('Error calculating file size from base64:', error);
-        // Return approximate size based on base64 length if atob fails
-        return Math.floor(base64WithoutPrefix.length * 0.75);
-    }
+    // Remove metadata prefix if present
+    const base64WithoutPrefix = base64Data.replace(/^data:[^;]+;base64,/, '');
+    
+    // Remove whitespace
+    const cleanLength = base64WithoutPrefix.replace(/\s/g, '').length;
+    
+    // Base64 encoding adds ~33% overhead, so multiply by 0.75 to get original size
+    // Account for padding characters
+    const paddingChars = (base64WithoutPrefix.match(/=+$/) || [''])[0].length;
+    
+    return Math.floor((cleanLength * 3) / 4) - paddingChars;
 }
 
 

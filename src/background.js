@@ -65,37 +65,45 @@ async function sendWhatsappMessage(msg, sendResponse) {
 async function downloadMediaFromUrl(url, options = {}) {
     const pUrl = new URL(url);
     
-    async function fetchData (url, options) {
+    async function fetchData(url, options) {
         const reqOptions = Object.assign({ headers: { accept: 'image/* video/* text/* audio/* application/pdf ' } }, options);
-        const response = await fetch(url);
+        const response = await fetch(url, reqOptions);
         const mime = response.headers.get('Content-Type');
         const size = response.headers.get('Content-Length');
 
         const contentDisposition = response.headers.get('Content-Disposition');
         const name = contentDisposition ? contentDisposition.match(/((?<=filename=")(.*)(?="))/) : "800x500.png";
 
-        let data = '';
-        if (response.buffer) {
-            data = (await response.buffer()).toString('base64');
-        } else {
-            const bArray = new Uint8Array(await response.arrayBuffer());
-            bArray.forEach((b) => {
-                data += String.fromCharCode(b);
-            });
-            data = btoa(data);
-        }
+        // Optimized binary to base64 conversion
+        const arrayBuffer = await response.arrayBuffer();
+        const data = arrayBufferToBase64Fast(arrayBuffer);
         
         return { 
             data: data, 
             mimetype: mime, 
             filename: name, 
-            filesize: size 
+            filesize: size || arrayBuffer.byteLength
         };
     }
 
-    const res = (await fetchData(url));
-
+    const res = await fetchData(url);
     return res;
+}
+
+// Optimized ArrayBuffer to Base64 conversion using chunk processing
+// This is significantly faster than character-by-character string concatenation
+function arrayBufferToBase64Fast(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    const chunkSize = 32768; // 32KB chunks - optimal for btoa
+    let binary = '';
+    
+    // Process in chunks to avoid call stack issues and improve performance
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    
+    return btoa(binary);
 }
 
 

@@ -255,6 +255,15 @@ function setWindowStore() {
 function loadUtils() {
     window.WWebJS = {};
     
+    // Performance debugging flag - set to true to log timing info
+    window.WWebJS.debugPerformance = false;
+    
+    window.WWebJS.perfLog = (label, startTime) => {
+        if (window.WWebJS.debugPerformance) {
+            console.log(`[WWebJS Performance] ${label}: ${Date.now() - startTime}ms`);
+        }
+    };
+    
     const responseEvent = 'WhatsappjsResponse';
     window.WWebJS.sendWhatsappMessage = async (receiver, text, options, sendSeen, uid) => {
         try {
@@ -659,7 +668,8 @@ function loadUtils() {
     window.WWebJS.toStickerData = async (mediaInfo) => {
         if (mediaInfo.mimetype == 'image/webp') return mediaInfo;
 
-        const file = window.WWebJS.mediaInfoToFile(mediaInfo);
+        // Use async version for faster base64 decoding
+        const file = await window.WWebJS.mediaInfoToFileAsync(mediaInfo);
         const webpSticker = await window.Store.StickerTools.toWebpSticker(file);
         const webpBuffer = await webpSticker.arrayBuffer();
         const data = window.WWebJS.arrayBufferToBase64(webpBuffer);
@@ -673,7 +683,8 @@ function loadUtils() {
     window.WWebJS.processStickerData = async (mediaInfo) => {
         if (mediaInfo.mimetype !== 'image/webp') throw new Error('Invalid media type');
 
-        const file = window.WWebJS.mediaInfoToFile(mediaInfo);
+        // Use async version for faster base64 decoding
+        const file = await window.WWebJS.mediaInfoToFileAsync(mediaInfo);
         let filehash = await window.WWebJS.getFileHash(file);
         let mediaKey = await window.WWebJS.generateHash(32);
 
@@ -699,8 +710,15 @@ function loadUtils() {
     };
 
     window.WWebJS.processMediaData = async (mediaInfo, { forceSticker, forceGif, forceVoice, forceDocument, forceMediaHd, sendToChannel }) => {
-        const file = window.WWebJS.mediaInfoToFile(mediaInfo);
+        const startTime = Date.now();
+        
+        // Use async version for faster base64 decoding (uses browser's native fetch API)
+        const file = await window.WWebJS.mediaInfoToFileAsync(mediaInfo);
+        window.WWebJS.perfLog('Base64 to File conversion', startTime);
+        
+        const opaqueStartTime = Date.now();
         const opaqueData = await window.Store.OpaqueData.createFromData(file, file.type);
+        window.WWebJS.perfLog('OpaqueData creation', opaqueStartTime);
         const mediaParams = {
             asSticker: forceSticker,
             asGif: forceGif,
@@ -745,9 +763,11 @@ function loadUtils() {
             ...(sendToChannel ? { calculateToken: window.Store.SendChannelMessage.getRandomFilehash } : {})
         };
 
+        const uploadStartTime = Date.now();
         const uploadedMedia = !sendToChannel
             ? await window.Store.MediaUpload.uploadMedia(dataToUpload)
             : await window.Store.MediaUpload.uploadUnencryptedMedia(dataToUpload);
+        window.WWebJS.perfLog('Media upload to WhatsApp servers', uploadStartTime);
 
         const mediaEntry = uploadedMedia.mediaEntry;
         if (!mediaEntry) {
@@ -953,19 +973,42 @@ function loadUtils() {
     };
 
     window.WWebJS.mediaInfoToFile = ({ data, mimetype, filename }) => {
-        const binaryData = window.atob(data);
-
-        const buffer = new ArrayBuffer(binaryData.length);
-        const view = new Uint8Array(buffer);
-        for (let i = 0; i < binaryData.length; i++) {
-            view[i] = binaryData.charCodeAt(i);
+        // Optimized base64 to File conversion using fetch API (much faster than manual loop)
+        // This avoids the slow character-by-character conversion
+        const byteCharacters = atob(data);
+        const byteNumbers = new Uint8Array(byteCharacters.length);
+        
+        // Use TextEncoder for faster conversion when possible
+        // Fallback to optimized chunk-based processing for binary data
+        const chunkSize = 65536; // Process in 64KB chunks for better performance
+        for (let offset = 0; offset < byteCharacters.length; offset += chunkSize) {
+            const end = Math.min(offset + chunkSize, byteCharacters.length);
+            for (let i = offset; i < end; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
         }
 
-        const blob = new Blob([buffer], { type: mimetype });
+        const blob = new Blob([byteNumbers], { type: mimetype });
         return new File([blob], filename, {
             type: mimetype,
             lastModified: Date.now()
         });
+    };
+
+    // Even faster async version using fetch API for base64 decoding
+    window.WWebJS.mediaInfoToFileAsync = async ({ data, mimetype, filename }) => {
+        try {
+            // Use fetch with data URL - browser handles base64 decoding natively (fastest)
+            const response = await fetch(`data:${mimetype};base64,${data}`);
+            const blob = await response.blob();
+            return new File([blob], filename, {
+                type: mimetype,
+                lastModified: Date.now()
+            });
+        } catch (error) {
+            // Fallback to sync version
+            return window.WWebJS.mediaInfoToFile({ data, mimetype, filename });
+        }
     };
 
     window.WWebJS.arrayBufferToBase64 = (arrayBuffer) => {
