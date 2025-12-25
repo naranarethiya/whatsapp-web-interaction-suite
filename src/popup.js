@@ -1,419 +1,275 @@
-// Global variables
+let parsedRecipients = [];
+let currentState = null;
 let selectedFile = null;
 
-// Tab switching functionality
-function switchTab(tabName) {
-    // Hide all tab contents
-    const tabContents = document.querySelectorAll('.tab-content');
-    tabContents.forEach(content => content.classList.remove('active'));
-    
-    // Remove active class from all tabs
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => tab.classList.remove('active'));
-    
-    // Show selected tab content
-    document.getElementById(tabName + '-tab').classList.add('active');
-    
-    // Add active class to clicked tab
-    const clickedTab = document.querySelector(`[data-tab="${tabName}"]`);
-    if (clickedTab) {
-        clickedTab.classList.add('active');
+document.addEventListener('DOMContentLoaded', () => {
+    wireTabs();
+    wireInputs();
+    loadState();
+});
+
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'progressUpdate') {
+        currentState = message.state;
+        renderReport(message.state);
     }
+});
+
+function wireTabs() {
+    document.querySelectorAll('.tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const target = tab.getAttribute('data-tab');
+            document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(`${target}-tab`).classList.add('active');
+        });
+    });
 }
 
-// Utility functions
-function showStatus(elementId, message, type = 'info') {
-    const statusElement = document.getElementById(elementId);
-    statusElement.textContent = message;
-    statusElement.className = `status ${type}`;
-    statusElement.style.display = 'block';
-    
-    // Auto hide after 5 seconds for success messages
-    if (type === 'success') {
-        setTimeout(() => {
-            statusElement.style.display = 'none';
-        }, 5000);
-    }
+function wireInputs() {
+    const recipientsInput = document.getElementById('recipientsInput');
+    recipientsInput.addEventListener('input', () => {
+        parsedRecipients = parseRecipients(recipientsInput.value);
+        updateRecipientUI();
+    });
+
+    document.getElementById('csvInput').addEventListener('change', handleCsvImport);
+
+    document.querySelectorAll('input[name="attachmentType"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+            toggleAttachmentFields(radio.value);
+        });
+    });
+
+    document.getElementById('attachmentFile').addEventListener('change', (e) => {
+        selectedFile = e.target.files?.[0] || null;
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', onSend);
+    document.getElementById('pauseBtn').addEventListener('click', () => chrome.runtime.sendMessage({ action: 'pauseSend' }));
+    document.getElementById('resumeBtn').addEventListener('click', () => chrome.runtime.sendMessage({ action: 'resumeSend' }));
+    document.getElementById('stopBtn').addEventListener('click', () => chrome.runtime.sendMessage({ action: 'stopSend' }));
 }
 
-function validateMobile(mobile) {
-    const pattern = /^\d{7,15}$/;
-    return pattern.test(mobile.replace(/\s+/g, ''));
+function getMode(count) {
+    if (count <= 10) return { key: 'instant', label: 'Instant • No delays' };
+    if (count <= 50) return { key: 'quick', label: 'Quick • 2-5 sec delay' };
+    if (count <= 200) return { key: 'normal', label: 'Normal • 5-10 sec delay' };
+    return { key: 'batch', label: 'Batch • 20/batch + 15s pause' };
 }
 
-function setButtonLoading(buttonId, isLoading, originalText) {
-    const button = document.getElementById(buttonId);
-    if (isLoading) {
-        button.disabled = true;
-        button.innerHTML = '<span class="icon">⏳</span>Sending...';
-    } else {
-        button.disabled = false;
-        button.innerHTML = originalText;
-    }
+function updateRecipientUI() {
+    const countBadge = document.getElementById('recipientCount');
+    countBadge.textContent = `${parsedRecipients.length} recipients`;
+    const mode = getMode(parsedRecipients.length);
+    document.getElementById('modeInfo').textContent = `Mode: ${mode.label}`;
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.textContent = parsedRecipients.length ? `🚀 Send to ${parsedRecipients.length} recipients` : '🚀 Send';
 }
 
-// Text message functionality
-async function sendTextMessage() {
-    const mobile = document.getElementById('textMobile').value.trim();
-    const message = document.getElementById('textMessage').value.trim();
-    
-    // Validation
-    if (!mobile) {
-        showStatus('textStatus', 'Please enter a mobile number', 'error');
+function toggleAttachmentFields(type) {
+    document.getElementById('attachmentUrlGroup').classList.toggle('hidden', type !== 'url');
+    document.getElementById('attachmentFileGroup').classList.toggle('hidden', type !== 'file');
+}
+
+function parseRecipients(text) {
+    const normalized = text
+        .replace(/\r/g, '')
+        .replace(/,\s*(?=\d{7,})/g, '|') // comma followed by another phone -> new entry
+        .replace(/\n+/g, '|');
+    const entries = normalized
+        .split('|')
+        .map((v) => v.trim())
+        .filter(Boolean);
+    const recipients = [];
+    const seen = new Set();
+    entries.forEach((entry) => {
+        const parts = entry.split(',').map((p) => p.trim());
+        const phone = (parts[0] || '').replace(/[^\d]/g, '');
+        if (!phone || phone.length < 7 || phone.length > 15) return;
+        if (seen.has(phone)) return;
+        seen.add(phone);
+        recipients.push({
+            phone,
+            name: parts[1] || '',
+            custom1: parts[2] || '',
+            custom2: parts[3] || '',
+        });
+    });
+    return recipients;
+}
+
+async function handleCsvImport(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const rows = text.split(/\r?\n/).filter(Boolean);
+    const header = rows[0].toLowerCase().includes('phone') ? rows.shift() : null;
+    const recipients = rows.map((row) => {
+        const cols = row.split(/[;,|\t]/).map((c) => c.trim());
+        const phone = (cols[0] || '').replace(/[^\d]/g, '');
+        return {
+            phone,
+            name: cols[1] || '',
+            custom1: cols[2] || '',
+            custom2: cols[3] || '',
+        };
+    });
+    parsedRecipients = dedupe([...parsedRecipients, ...recipients]);
+    const textarea = document.getElementById('recipientsInput');
+    textarea.value = parsedRecipients.map((r) => [r.phone, r.name, r.custom1].filter(Boolean).join(',')).join('\n');
+    updateRecipientUI();
+}
+
+function dedupe(list) {
+    const seen = new Set();
+    return list.filter((r) => {
+        if (!r.phone || seen.has(r.phone)) return false;
+        seen.add(r.phone);
+        return true;
+    });
+}
+
+async function onSend() {
+    const statusEl = document.getElementById('sendStatus');
+    statusEl.textContent = '';
+    if (!parsedRecipients.length) {
+        statusEl.textContent = 'Add at least one recipient.';
         return;
     }
-    
-    if (!validateMobile(mobile)) {
-        showStatus('textStatus', 'Please enter a valid mobile number (7-15 digits)', 'error');
-        return;
-    }
-    
+    const message = document.getElementById('messageInput').value.trim();
     if (!message) {
-        showStatus('textStatus', 'Please enter a message', 'error');
+        statusEl.textContent = 'Message cannot be empty.';
         return;
     }
-    
-    // Send message
-    setButtonLoading('textBtn', true, '<span class="icon">🚀</span>Send Text Message');
-    showStatus('textStatus', 'Sending message...', 'info');
-    
-    try {
-        const response = await chrome.runtime.sendMessage({
-            action: 'contentjsToBackground',
-            text: message,
-            mobile: mobile,
-        });
-        
-        if (response.success) {
-            showStatus('textStatus', '✅ Message sent successfully!', 'success');
-            // Clear form
-            document.getElementById('textMessage').value = '';
-        } else {
-            showStatus('textStatus', `❌ Failed to send: ${response.response || 'Unknown error'}`, 'error');
+
+    const attachmentType = document.querySelector('input[name="attachmentType"]:checked')?.value || 'none';
+    let media = null;
+    if (attachmentType === 'url') {
+        const url = document.getElementById('attachmentUrl').value.trim();
+        try {
+            new URL(url);
+            media = { type: 'url', url };
+        } catch {
+            statusEl.textContent = 'Enter a valid URL for attachment.';
+            return;
         }
-    } catch (error) {
-        showStatus('textStatus', `❌ Error: ${error.message}`, 'error');
-    } finally {
-        setButtonLoading('textBtn', false, '<span class="icon">🚀</span>Send Text Message');
     }
-}
-
-// URL media functionality
-function previewUrl() {
-    const url = document.getElementById('mediaUrl').value.trim();
-    const previewDiv = document.getElementById('urlPreview');
-    
-    if (!url) {
-        previewDiv.style.display = 'none';
-        return;
-    }
-    
-    // Basic URL validation
-    try {
-        new URL(url);
-    } catch (e) {
-        previewDiv.innerHTML = '<span style="color: #c62828;">Invalid URL format</span>';
-        previewDiv.style.display = 'block';
-        return;
-    }
-    
-    // Show preview based on file type
-    const extension = url.split('.').pop().toLowerCase();
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
-    const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi'];
-    
-    if (imageExtensions.includes(extension)) {
-        previewDiv.innerHTML = `
-            <div style="font-size: 12px; margin-bottom: 8px;">📷 Image Preview:</div>
-            <img src="${url}" alt="Preview" onerror="this.style.display='none'; this.nextSibling.style.display='block';">
-            <div style="display: none; color: #c62828;">Failed to load image</div>
-        `;
-        previewDiv.style.display = 'block';
-    } else if (videoExtensions.includes(extension)) {
-        previewDiv.innerHTML = `
-            <div style="font-size: 12px; margin-bottom: 8px;">🎥 Video Preview:</div>
-            <video controls style="max-width: 100%; max-height: 150px;">
-                <source src="${url}" type="video/${extension}">
-                Your browser does not support the video tag.
-            </video>
-        `;
-        previewDiv.style.display = 'block';
-    } else {
-        previewDiv.innerHTML = `
-            <div style="font-size: 12px;">📄 File: ${url.split('/').pop()}</div>
-            <div style="font-size: 11px; color: #666; margin-top: 4px;">Type: ${extension.toUpperCase()}</div>
-        `;
-        previewDiv.style.display = 'block';
-    }
-}
-
-async function sendUrlMessage() {
-    const mobile = document.getElementById('urlMobile').value.trim();
-    const message = document.getElementById('urlMessage').value.trim();
-    const url = document.getElementById('mediaUrl').value.trim();
-    
-    // Validation
-    if (!mobile) {
-        showStatus('urlStatus', 'Please enter a mobile number', 'error');
-        return;
-    }
-    
-    if (!validateMobile(mobile)) {
-        showStatus('urlStatus', 'Please enter a valid mobile number (7-15 digits)', 'error');
-        return;
-    }
-    
-    if (!url) {
-        showStatus('urlStatus', 'Please enter a media URL', 'error');
-        return;
-    }
-    
-    try {
-        new URL(url);
-    } catch (e) {
-        showStatus('urlStatus', 'Please enter a valid URL', 'error');
-        return;
-    }
-    
-    // Send message
-    setButtonLoading('urlBtn', true, '<span class="icon">🚀</span>Send URL Media');
-    showStatus('urlStatus', 'Sending media message...', 'info');
-    
-    try {
-        const response = await chrome.runtime.sendMessage({
-            action: 'contentjsToBackground',
-            mobile: mobile,
-            text: message,
-            url: url
-        });
-
-        console.log("Response in Popup.js", response);
-
-        
-        if (response.success) {
-            showStatus('urlStatus', '✅ Media message sent successfully!', 'success');
-            // Clear form
-            document.getElementById('urlMessage').value = '';
-            document.getElementById('mediaUrl').value = '';
-            document.getElementById('urlPreview').style.display = 'none';
-        } else {
-            showStatus('urlStatus', `❌ Failed to send: ${response.response || 'Unknown error'}`, 'error');
+    if (attachmentType === 'file') {
+        if (!selectedFile) {
+            statusEl.textContent = 'Select a file to attach.';
+            return;
         }
-    } catch (error) {
-        showStatus('urlStatus', `❌ Error: ${error.message}`, 'error');
-    } finally {
-        setButtonLoading('urlBtn', false, '<span class="icon">🚀</span>Send URL Media');
+        const base64 = await fileToBase64(selectedFile);
+        media = {
+            type: 'file',
+            data: base64,
+            mime: selectedFile.type || 'application/octet-stream',
+            filename: selectedFile.name,
+            filesize: selectedFile.size,
+        };
     }
-}
 
-// File upload functionality
-function handleFileSelect() {
-    const fileInput = document.getElementById('fileInput');
-    const fileInfo = document.getElementById('fileInfo');
-    const fileBtn = document.getElementById('fileBtn');
-    
-    if (fileInput.files.length === 0) {
-        fileInfo.style.display = 'none';
-        fileBtn.disabled = true;
-        selectedFile = null;
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+    statusEl.textContent = 'Starting send...';
+
+    const response = await chrome.runtime.sendMessage({
+        action: 'startSend',
+        recipients: parsedRecipients,
+        message: { template: message },
+        media,
+    });
+
+    if (!response?.success) {
+        statusEl.textContent = response?.error || 'Failed to start send.';
+        sendBtn.disabled = false;
+        sendBtn.textContent = '🚀 Send';
         return;
     }
-    
-    selectedFile = fileInput.files[0];
-    const fileSize = (selectedFile.size / 1024 / 1024).toFixed(2); // MB
-    const fileType = selectedFile.type || 'Unknown';
-    
-    // Show file info
-    fileInfo.innerHTML = `
-        <div style="font-weight: 500;">📄 ${selectedFile.name}</div>
-        <div style="margin-top: 4px;">
-            <span>Size: ${fileSize} MB</span> | 
-            <span>Type: ${fileType}</span>
-        </div>
-    `;
-    fileInfo.style.display = 'block';
-    fileBtn.disabled = false;
-    
-    // Check file size (limit to 16MB for WhatsApp)
-    if (selectedFile.size > 16 * 1024 * 1024) {
-        showStatus('fileStatus', '⚠️ File size exceeds 16MB limit. WhatsApp may not accept this file.', 'error');
-    } else {
-        showStatus('fileStatus', '✅ File ready to send', 'success');
-    }
+    statusEl.textContent = 'Send started. Opening report...';
+    switchToReportTab();
+}
+
+function switchToReportTab() {
+    document.querySelector('[data-tab="report"]').click();
 }
 
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.readAsDataURL(file);
         reader.onload = () => {
-            // Extract base64 data without the data URL prefix
             const base64 = reader.result.split(',')[1];
             resolve(base64);
         };
-        reader.onerror = error => reject(error);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
     });
 }
 
-function getMimeType(file) {
-    if (file.type) {
-        return file.type;
-    }
-    
-    // Fallback based on file extension
-    const extension = file.name.split('.').pop().toLowerCase();
-    const mimeTypes = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'gif': 'image/gif',
-        'pdf': 'application/pdf',
-        'doc': 'application/msword',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'mp4': 'video/mp4',
-        'mp3': 'audio/mpeg',
-        'wav': 'audio/wav'
-    };
-    
-    return mimeTypes[extension] || 'application/octet-stream';
-}
-
-async function sendFileMessage() {
-    const mobile = document.getElementById('fileMobile').value.trim();
-    const message = document.getElementById('fileMessage').value.trim();
-    
-    // Validation
-    if (!mobile) {
-        showStatus('fileStatus', 'Please enter a mobile number', 'error');
-        return;
-    }
-    
-    if (!validateMobile(mobile)) {
-        showStatus('fileStatus', 'Please enter a valid mobile number (7-15 digits)', 'error');
-        return;
-    }
-    
-    if (!selectedFile) {
-        showStatus('fileStatus', 'Please select a file', 'error');
-        return;
-    }
-    
-    // Send message
-    setButtonLoading('fileBtn', true, '<span class="icon">🚀</span>Send File');
-    showStatus('fileStatus', 'Converting file to base64...', 'info');
-    
-    try {
-        // Convert file to base64
-        const base64Data = await fileToBase64(selectedFile);
-        const mimeType = getMimeType(selectedFile);
-        
-        showStatus('fileStatus', 'Sending file message...', 'info');
-        
-        const response = await chrome.runtime.sendMessage({
-            action: 'contentjsToBackground',
-            mobile: mobile,
-            text: message,
-            media: {
-                mime: mimeType,
-                data: base64Data,
-                filename: selectedFile.name,
-                filesize: getDiskSizeFromBase64(base64Data)
-            },
-        });
-        
-        if (response.success) {
-            showStatus('fileStatus', '✅ File sent successfully!', 'success');
-            // Clear form
-            document.getElementById('fileMessage').value = '';
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileInfo').style.display = 'none';
-            document.getElementById('fileBtn').disabled = true;
-            selectedFile = null;
-        } else {
-            showStatus('fileStatus', `❌ Failed to send: ${response.response || 'Unknown error'}`, 'error');
-        }
-    } catch (error) {
-        showStatus('fileStatus', `❌ Error: ${error.message}`, 'error');
-    } finally {
-        setButtonLoading('fileBtn', false, '<span class="icon">🚀</span>Send File');
+async function loadState() {
+    const state = await chrome.runtime.sendMessage({ action: 'getState' });
+    if (state) {
+        currentState = state;
+        renderReport(state);
+        switchToReportTab();
+    } else {
+        renderReport(null);
     }
 }
 
-// Initialize popup
-document.addEventListener('DOMContentLoaded', function() {
-    // Set default values for testing
-    document.getElementById('textMobile').value = '';
-    document.getElementById('urlMobile').value = '';
-    document.getElementById('fileMobile').value = '';
-    
-    // Add event listeners for tabs
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            switchTab(tabName);
-        });
-    });
-    
-    // Add event listeners for buttons
-    document.getElementById('textBtn').addEventListener('click', sendTextMessage);
-    document.getElementById('urlBtn').addEventListener('click', sendUrlMessage);
-    document.getElementById('fileBtn').addEventListener('click', sendFileMessage);
-    
-    // Add event listener for URL input
-    document.getElementById('mediaUrl').addEventListener('input', previewUrl);
-    document.getElementById('mediaUrl').addEventListener('change', previewUrl);
-    
-    // Add event listener for file input
-    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-    
-    // Add drag and drop functionality for file input
-    const fileInput = document.querySelector('.file-input');
-    
-    fileInput.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileInput.style.borderColor = '#25D366';
-        fileInput.style.background = '#f0fff0';
-    });
-    
-    fileInput.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        fileInput.style.borderColor = '#ddd';
-        fileInput.style.background = '#fafafa';
-    });
-    
-    fileInput.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileInput.style.borderColor = '#ddd';
-        fileInput.style.background = '#fafafa';
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            document.getElementById('fileInput').files = files;
-            handleFileSelect();
-        }
-    });
-});
+function renderReport(state) {
+    const statusEl = document.getElementById('campaignStatus');
+    const modeEl = document.getElementById('campaignMode');
+    const fill = document.getElementById('progressFill');
+    const sentEl = document.getElementById('sentCount');
+    const failedEl = document.getElementById('failedCount');
+    const pendingEl = document.getElementById('pendingCount');
+    const currentEl = document.getElementById('currentRecipient');
+    const resultsBody = document.getElementById('resultsBody');
 
-function getDiskSizeFromBase64(base64Data) {
-    // Remove metadata prefix (e.g., 'data:image/png;base64,')
-    // Use more flexible regex to handle various MIME types
-    var base64WithoutPrefix = base64Data.replace(/^data:[^;]+;base64,/, '');
-  
-    try {
-        // Clean the base64 data before processing
-        var cleanedBase64 = cleanBase64Data(base64WithoutPrefix);
-        
-        // Decode base64 string to binary data
-        var binaryData = atob(cleanedBase64);
-        
-        // Calculate disk size in bytes
-        var diskSizeInBytes = binaryData.length;
-        
-        return diskSizeInBytes;
-    } catch (error) {
-        console.error('Error calculating file size from base64:', error);
-        // Return approximate size based on base64 length if atob fails
-        return Math.floor(base64WithoutPrefix.length * 0.75);
+    if (!state) {
+        statusEl.textContent = 'Idle';
+        modeEl.textContent = '-';
+        fill.style.width = '0%';
+        sentEl.textContent = '0';
+        failedEl.textContent = '0';
+        pendingEl.textContent = '0';
+        currentEl.textContent = 'Current: -';
+        resultsBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#6b7280;">No data yet</td></tr>`;
+        return;
     }
+
+    statusEl.textContent = state.status;
+    modeEl.textContent = state.mode || '-';
+
+    const progress = state.progress || { total: 0, sent: 0, failed: 0, currentIndex: 0 };
+    const total = progress.total || 0;
+    const done = progress.currentIndex || 0;
+    const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    fill.style.width = `${pct}%`;
+
+    sentEl.textContent = progress.sent || 0;
+    failedEl.textContent = progress.failed || 0;
+    pendingEl.textContent = Math.max(0, (progress.total || 0) - (progress.sent || 0) - (progress.failed || 0));
+
+    const current = state.currentRecipient;
+    currentEl.textContent = current ? `Current: ${current.phone}${current.name ? ' (' + current.name + ')' : ''}` : 'Current: -';
+
+    const rows = (state.recipients || []).slice(0, 20).map((r, idx) => {
+        return `<tr>
+            <td>${idx + 1}</td>
+            <td>${r.phone}</td>
+            <td>${r.name || 'there'}</td>
+            <td>${r.status || 'pending'}</td>
+        </tr>`;
+    });
+    resultsBody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="4" style="text-align:center;color:#6b7280;">No data yet</td></tr>`;
+
+    const isRunning = state.status === 'running';
+    document.getElementById('pauseBtn').disabled = !isRunning;
+    document.getElementById('resumeBtn').disabled = state.status !== 'paused';
+    document.getElementById('stopBtn').disabled = state.status === 'completed' || state.status === 'stopped';
 }

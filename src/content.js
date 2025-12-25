@@ -2,30 +2,33 @@
  *  this listening message from "website app" on same tab of web app
  * */
 window.addEventListener("message", async (event) => {
-    if(event.data.action == 'webAppToContentjs') {
-        console.log("Received event in content.js", event)
+    if (event.source !== window) return;
+    if (event.data.action === 'webAppToContentjs') {
+        console.log("Received event in content.js", event);
+
+        if (!chrome?.runtime?.sendMessage) {
+            console.error('chrome.runtime unavailable in this context');
+            triggerMessageResponse('Extension context not available', false, {
+                mobile: event.data.mobile,
+                text: event.data.text,
+                url: event.data.url ? event.data.url : '',
+                base64Data: event.data.media ? event.data.media.data : '',
+                mime: event.data.media ? event.data.media.mime : '',
+            }, event.data.uid);
+            return;
+        }
+
         // send message to background.js
         event.data.action = 'contentjsToBackground';
         const response = await chrome.runtime.sendMessage(event.data);
 
-        if(!response.success) {
-            triggerMessageResponse(response.response, response.success, {
-                mobile: event.data.mobile,
-                text: event.data.text,
-                url: event.data.url ? event.data.url : '',
-                base64Data: event.data.media ? event.data.media.data : '',
-                mime: event.data.media ? event.data.media.mime : '',
-            }, event.data.uid);
-        }
-        else {
-            triggerMessageResponse(response.response, response.success, {
-                mobile: event.data.mobile,
-                text: event.data.text,
-                url: event.data.url ? event.data.url : '',
-                base64Data: event.data.media ? event.data.media.data : '',
-                mime: event.data.media ? event.data.media.mime : '',
-            }, event.data.uid);
-        }
+        triggerMessageResponse(response.response, response.success, {
+            mobile: event.data.mobile,
+            text: event.data.text,
+            url: event.data.url ? event.data.url : '',
+            base64Data: event.data.media ? event.data.media.data : '',
+            mime: event.data.media ? event.data.media.mime : '',
+        }, event.data.uid);
     }
 });
 

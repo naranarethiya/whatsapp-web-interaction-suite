@@ -5,339 +5,177 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Web Bridge</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            width: 400px;
-            height: 600px;
-            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
-            color: #333;
+            width: 420px;
+            height: 640px;
+            background: #f4f6f8;
+            color: #1d1d1f;
         }
-        
         .header {
             background: #075E54;
-            color: white;
-            padding: 20px;
+            color: #fff;
+            padding: 18px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.18);
         }
-        
-        .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        
-        .header p {
-            font-size: 12px;
-            opacity: 0.8;
-        }
-        
-        .container {
-            background: white;
-            height: calc(100% - 80px);
-            overflow-y: auto;
-        }
-        
-        .tabs {
-            display: flex;
-            background: #f0f0f0;
-            border-bottom: 1px solid #ddd;
-        }
-        
+        .header h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .header p { font-size: 12px; opacity: 0.85; }
+        .container { height: calc(100% - 72px); overflow-y: auto; background: #fff; }
+        .tabs { display: flex; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
         .tab {
             flex: 1;
-            padding: 12px 8px;
+            padding: 12px;
             text-align: center;
             cursor: pointer;
-            background: #f0f0f0;
             border: none;
-            font-size: 12px;
-            font-weight: 500;
-            color: #666;
-            transition: all 0.3s ease;
+            background: transparent;
+            font-weight: 600;
+            color: #556070;
+            transition: all .2s ease;
         }
-        
-        .tab.active {
-            background: white;
-            color: #25D366;
-            border-bottom: 2px solid #25D366;
+        .tab.active { color: #25D366; border-bottom: 2px solid #25D366; background: #fff; }
+        .tab-content { display: none; padding: 18px; }
+        .tab-content.active { display: block; }
+        .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin-bottom: 14px; background: #fff; }
+        .card h3 { font-size: 14px; margin-bottom: 8px; color: #111827; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+        textarea, input[type="text"], input[type="url"], input[type="file"] {
+            width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;
         }
-        
-        .tab:hover {
-            background: #e8e8e8;
-        }
-        
-        .tab.active:hover {
-            background: white;
-        }
-        
-        .tab-content {
-            display: none;
-            padding: 20px;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #333;
-            font-size: 13px;
-        }
-        
-        input, textarea, select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
-        }
-        
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: #25D366;
-            box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.1);
-        }
-        
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-        
-        button {
+        textarea:focus, input:focus { outline: none; border-color: #25D366; box-shadow: 0 0 0 2px rgba(37,211,102,0.15); }
+        textarea { resize: vertical; min-height: 70px; }
+        .small-text { font-size: 11px; color: #6b7280; margin-top: 4px; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; background: #f3f4f6; color: #111827; }
+        .badge.success { background: #ecfdf3; color: #0f5132; }
+        .badge.warning { background: #fff7ed; color: #b45309; }
+        .badge.info { background: #eff6ff; color: #1d4ed8; }
+        .btn {
             width: 100%;
             padding: 14px;
-            background: #25D366;
-            color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            border-radius: 10px;
+            background: #25D366;
+            color: #fff;
+            font-weight: 700;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-top: 10px;
+            transition: background .2s ease;
         }
-        
-        button:hover {
-            background: #128C7E;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-        
-        .file-input {
-            width: 100%;
-            padding: 12px;
-            border: 2px dashed #ddd;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.3s ease;
-            background: #fafafa;
-        }
-        
-        .file-input:hover {
-            border-color: #25D366;
-            background: #f0fff0;
-        }
-        
-        .file-input input[type="file"] {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-        
-        .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            text-align: center;
-            display: none;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        .file-info {
-            margin-top: 10px;
-            padding: 8px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #666;
-            display: none;
-        }
-        
-        .icon {
-            margin-right: 5px;
-        }
-        
-        .url-preview {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 3px solid #25D366;
-            display: none;
-        }
-        
-        .url-preview img {
-            max-width: 100%;
-            max-height: 150px;
-            border-radius: 4px;
-        }
-        
-        .url-preview video {
-            max-width: 100%;
-            max-height: 150px;
-            border-radius: 4px;
-        }
-        
-        .small-text {
-            font-size: 11px;
-            color: #666;
-            margin-top: 5px;
-        }
+        .btn:hover { background: #128C7E; }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .progress-bar { height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin: 8px 0; }
+        .progress-bar span { display: block; height: 100%; background: linear-gradient(90deg,#22c55e,#16a34a); width: 0%; transition: width .3s ease; }
+        .stats { display: flex; justify-content: space-between; font-size: 12px; margin-top: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { font-size: 12px; padding: 6px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f8fafc; font-weight: 700; }
+        .controls { display: flex; gap: 8px; margin-top: 10px; }
+        .controls button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
+        .controls button.primary { background: #25D366; color: #fff; border: none; }
+        .placeholder-hint { background: #f8fafc; border: 1px dashed #d1d5db; border-radius: 8px; padding: 10px; font-size: 12px; color: #4b5563; }
+        .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📱 WhatsApp Web Bridge</h1>
-        <p>Send messages directly to WhatsApp</p>
+        <p>Campaign sending with live reports</p>
     </div>
-    
     <div class="container">
         <div class="tabs">
-            <button class="tab active" data-tab="text">
-                <span class="icon">💬</span>Text
-            </button>
-            <button class="tab" data-tab="url">
-                <span class="icon">🔗</span>URL Media
-            </button>
-            <button class="tab" data-tab="file">
-                <span class="icon">📎</span>File Upload
-            </button>
+            <button class="tab active" data-tab="send">💬 Send Message</button>
+            <button class="tab" data-tab="report">📊 Report</button>
         </div>
-        
-        <!-- Text Message Tab -->
-        <div id="text-tab" class="tab-content active">
-            <div class="form-group">
-                <label for="textMobile">📞 Mobile Number</label>
-                <input type="tel" id="textMobile" placeholder="e.g., 918879331633" />
-                <div class="small-text">Include country code (e.g., 91 for India)</div>
-            </div>
-            
-            <div class="form-group">
-                <label for="textMessage">💬 Message</label>
-                <textarea id="textMessage" placeholder="Type your message here..." rows="4"></textarea>
-            </div>
 
-            <div id="textStatus" class="status"></div>
-            
-            <button id="textBtn">
-                <span class="icon">🚀</span>Send Text Message
-            </button>
-        </div>
-        
-        <!-- URL Media Tab -->
-        <div id="url-tab" class="tab-content">
-            <div class="form-group">
-                <label for="urlMobile">📞 Mobile Number</label>
-                <input type="tel" id="urlMobile" placeholder="e.g., 918879331633" />
-            </div>
-            
-            <div class="form-group">
-                <label for="urlMessage">💬 Caption (Optional)</label>
-                <textarea id="urlMessage" placeholder="Add a caption for your media..." rows="2"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="mediaUrl">🔗 Media URL</label>
-                <input type="url" id="mediaUrl" placeholder="https://example.com/image.jpg" />
-                <div class="small-text">Direct link to image, video, or document</div>
-            </div>
-            
-            <div id="urlPreview" class="url-preview"></div>
-            
-            <div id="urlStatus" class="status"></div>
-
-            <button id="urlBtn">
-                <span class="icon">🚀</span>Send URL Media
-            </button>
-        </div>
-        
-        <!-- File Upload Tab -->
-        <div id="file-tab" class="tab-content">
-            <div class="form-group">
-                <label for="fileMobile">📞 Mobile Number</label>
-                <input type="tel" id="fileMobile" placeholder="e.g., 918879331633" />
-            </div>
-            
-            <div class="form-group">
-                <label for="fileMessage">💬 Caption (Optional)</label>
-                <textarea id="fileMessage" placeholder="Add a caption for your file..." rows="2"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label>📎 Select File</label>
-                <div class="file-input-wrapper">
-                    <div class="file-input">
-                        <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx" />
-                        <span>Click to select file or drag & drop</span>
+        <div id="send-tab" class="tab-content active">
+            <div class="card">
+                <h3>Recipients</h3>
+                <div class="form-group">
+                    <textarea id="recipientsInput" placeholder="918879331633,John&#10;919876543210&#10;917654321098,Jane,VIP">918879331463,</textarea>
+                    <div class="small-text">Comma or new line separated. Format: number[,name[,custom1]]</div>
+                </div>
+                <div class="form-group grid">
+                    <div>
+                        <label>Import CSV</label>
+                        <input type="file" id="csvInput" accept=".csv,text/csv" />
+                        <div class="small-text">Auto-detects header and delimiter</div>
+                    </div>
+                    <div>
+                        <label>Recipients Added</label>
+                        <div id="recipientCount" class="badge info">0 recipients</div>
+                        <div id="modeInfo" class="small-text" style="margin-top:6px;">Mode: Instant • No delays</div>
                     </div>
                 </div>
-                <div class="small-text">Supports: Images, Videos, Audio, PDF, Documents</div>
             </div>
-            
-            <div id="fileInfo" class="file-info"></div>
-            
-            <div id="fileStatus" class="status"></div>
-            <button id="fileBtn" disabled>
-                <span class="icon">🚀</span>Send File
-            </button>
+
+            <div class="card">
+                <h3>Message</h3>
+                <div class="form-group">
+                    <textarea id="messageInput" placeholder="Hi {{name}}, check out our latest products!" rows="4">Hi Naran,</textarea>
+                </div>
+                <div class="placeholder-hint">
+                    Placeholders: {{name}}, {{phone}}, {{custom1}}, {{custom2}}, {{date}}, {{time}}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Attachment (optional)</h3>
+                <div class="form-group pill-group">
+                    <label><input type="radio" name="attachmentType" value="none" checked /> None</label>
+                    <label><input type="radio" name="attachmentType" value="url" /> URL</label>
+                    <label><input type="radio" name="attachmentType" value="file" /> File</label>
+                </div>
+                <div class="form-group hidden" id="attachmentUrlGroup">
+                    <input type="url" id="attachmentUrl" placeholder="https://example.com/promo.jpg" />
+                    <div class="small-text">Direct link to image/video/document</div>
+                </div>
+                <div class="form-group hidden" id="attachmentFileGroup">
+                    <input type="file" id="attachmentFile" />
+                    <div class="small-text">File is kept in memory during send, not stored</div>
+                </div>
+            </div>
+
+            <button id="sendBtn" class="btn">🚀 Send</button>
+            <div id="sendStatus" class="small-text" style="margin-top:8px;color:#b45309;"></div>
+        </div>
+
+        <div id="report-tab" class="tab-content">
+            <div class="card">
+                <div class="stats">
+                    <div><strong>Status:</strong> <span id="campaignStatus" class="badge">Idle</span></div>
+                    <div><strong>Mode:</strong> <span id="campaignMode" class="badge info">-</span></div>
+                </div>
+                <div class="progress-bar"><span id="progressFill"></span></div>
+                <div class="stats">
+                    <div>✅ Sent: <span id="sentCount">0</span></div>
+                    <div>❌ Failed: <span id="failedCount">0</span></div>
+                    <div>⏳ Pending: <span id="pendingCount">0</span></div>
+                </div>
+                <div class="small-text" id="currentRecipient">Current: -</div>
+                <div class="controls">
+                    <button id="pauseBtn">⏸ Pause</button>
+                    <button id="resumeBtn" class="primary">▶ Resume</button>
+                    <button id="stopBtn">⏹ Stop</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Recent Activity</h3>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Phone</th><th>Name</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <tr><td colspan="4" style="text-align:center;color:#6b7280;">No data yet</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-    
     <script src="src/popup.js"></script>
 </body>
 </html>

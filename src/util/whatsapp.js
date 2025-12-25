@@ -264,6 +264,27 @@ function loadUtils() {
         }
     };
     
+    // Check if a phone number is registered on WhatsApp
+    window.WWebJS.checkNumberExists = async (phoneNumber) => {
+        try {
+            const wid = window.Store.WidFactory.createWid(`${phoneNumber}@c.us`);
+            const result = await window.Store.QueryExist(wid);
+            return {
+                exists: !!(result && result.wid),
+                jid: result?.wid?._serialized || null,
+                isBusiness: result?.biz || false,
+            };
+        } catch (error) {
+            console.error('Error checking number:', error);
+            return {
+                exists: false,
+                jid: null,
+                isBusiness: false,
+                error: error?.message || 'validation_error'
+            };
+        }
+    };
+    
     const responseEvent = 'WhatsappjsResponse';
     window.WWebJS.sendWhatsappMessage = async (receiver, text, options, sendSeen, uid) => {
         try {
