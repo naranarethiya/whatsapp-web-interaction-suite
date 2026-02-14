@@ -395,13 +395,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Clean base64 string for atob() (whitespace, invalid chars, padding). Used by getDiskSizeFromBase64.
+function cleanBase64Data(base64Data) {
+    if (!base64Data || typeof base64Data !== 'string') {
+        return base64Data;
+    }
+    var cleaned = base64Data.replace(/\s/g, '');
+    if (cleaned.indexOf('data:') === 0) {
+        cleaned = cleaned.replace(/^data:[^;]+;base64,/, '');
+    }
+    if (/[^A-Za-z0-9+/=]/.test(cleaned)) {
+        cleaned = cleaned.replace(/[^A-Za-z0-9+/=]/g, '');
+    }
+    var remainder = cleaned.length % 4;
+    if (remainder) {
+        cleaned += '='.repeat(4 - remainder);
+    }
+    return cleaned;
+}
+
 function getDiskSizeFromBase64(base64Data) {
     // Remove metadata prefix (e.g., 'data:image/png;base64,')
-    // Use more flexible regex to handle various MIME types
     var base64WithoutPrefix = base64Data.replace(/^data:[^;]+;base64,/, '');
-  
+
     try {
-        // Clean the base64 data before processing
         var cleanedBase64 = cleanBase64Data(base64WithoutPrefix);
         
         // Decode base64 string to binary data

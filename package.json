@@ -1,0 +1,18 @@
+{
+  "name": "whatsapp-web-interaction-suite",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sync-upstream": "node scripts/sync-upstream.js",
+    "build:zip": "node scripts/build-extension-zip.js"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.272",
+    "archiver": "^7.0.1",
+    "fake-indexeddb": "^6.0.1",
+    "vitest": "^1.4.0"
+  }
+}

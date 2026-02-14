@@ -156,6 +156,16 @@ document.addEventListener('whatsappSendResponse', function(e) {
 </html>
 ```
 
+## Building for Chrome Web Store
+
+To create a `.zip` package for uploading to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole):
+
+```bash
+npm run build:zip
+```
+
+This produces **`dist/wa-web-bridge-v<version>.zip`** containing only the files required by the extension (manifest, scripts, popup, icons). No `node_modules`, tests, or dev files are included.
+
 ## Important Notes
 
 - **Mobile Number Format**: Include the country code without spaces or special characters (e.g., `918879331633` for India)
