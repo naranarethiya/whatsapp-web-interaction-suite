@@ -1,3 +1,21 @@
+/**
+ * MV3 keepalive: prevent service worker termination during long-running operations.
+ * Chrome may kill the SW after ~30s of inactivity; this pings every 25s while active.
+ */
+let keepAliveTimer = null;
+function startKeepAlive() {
+    if (keepAliveTimer) return;
+    keepAliveTimer = setInterval(() => {
+        chrome.runtime.getPlatformInfo(() => {});
+    }, 25000);
+}
+function stopKeepAlive() {
+    if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+    }
+}
+
 /** Listen port.postMessage from content.js */
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'contentjsToBackground') {
@@ -9,42 +27,42 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 /** trigger event on whatsapp tab */
 async function sendWhatsappMessage(msg, sendResponse) {
-    const [tab] = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*'});
-
-    if(!tab) {
-        sendResponse({
-            response : "Whatsapp is not runnung, please open whatsapp.",
-            success: false,
-        });
-        return;
-    }
-
-    let messageData = {
-        action: 'backgroundToWhatsapp',
-        text: msg.text,
-        receiver: msg.mobile,
-        internalOptions: {},
-        uid: msg.uid || generateUniqueId(),
-    };
-
+    startKeepAlive();
     try {
+        const [tab] = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*'});
+
+        if(!tab) {
+            sendResponse({
+                response : "Whatsapp is not running, please open whatsapp.",
+                success: false,
+            });
+            return;
+        }
+
+        let messageData = {
+            action: 'backgroundToWhatsapp',
+            text: msg.text,
+            receiver: msg.mobile,
+            internalOptions: {},
+            uid: msg.uid || generateUniqueId(),
+        };
+
         if(msg.url && isURL(msg.url)) {
             messageData.internalOptions = {
                 linkPreview: true,
             };
             messageData.internalOptions.media = await downloadMediaFromUrl(msg.url);
-            messageData.internalOptions.caption = msg.text,
+            messageData.internalOptions.caption = msg.text;
             messageData.text = '';
         }
         else if(typeof msg.media == 'object') {
             messageData.internalOptions.media = {
-                // data: msg.media.data.replace(/^data:[a-z]+\/[a-z]+;base64,/, ''),
                 data: msg.media.data,
                 mimetype: msg.media.mime, 
                 filename: msg.media.filename, 
                 filesize: msg.media.filesize 
-            }
-            messageData.internalOptions.caption = msg.text,
+            };
+            messageData.internalOptions.caption = msg.text;
             messageData.text = '';
         }
     
@@ -53,12 +71,14 @@ async function sendWhatsappMessage(msg, sendResponse) {
     
         sendResponse(response);   
     } catch (error) {
-        console.log(error);
+        console.error("Error in sendWhatsappMessage:", error);
         sendResponse({
             response : "Error while sending message",
             success: false,
-            error: error,
+            error: error?.message || String(error),
         });
+    } finally {
+        stopKeepAlive();
     }
 }
 

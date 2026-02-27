@@ -14,12 +14,12 @@ function generateUniqueId() {
 
 window.whatsappWebSuite.sendTextMessage = function(mobile, text) {
 
-    let sendTextMessage = {
+    let message = {
         'mobile': mobile,
         'text': text,
     };
 
-    console.log("In sendTextMessage", sendTextMessage);
+    console.log("In sendTextMessage", message);
 
     if(!isValidMobile(mobile)) {
         console.error("Invalid mobile number. Use only numbers, no spaces or special characters, and include the country code.");

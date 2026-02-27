@@ -4,12 +4,24 @@
  * Upstream: whatsapp-web.js Store.js (adapted). Custom: interval + event listener.
  */
 let interval = null;
+let storeRetryCount = 0;
+const MAX_STORE_RETRIES = 30;
 interval = setInterval(function () {
     if (window?.Store?.AppState === undefined) {
-        console.log('trying to load events');
-        setWindowStore();
+        storeRetryCount++;
+        if (storeRetryCount > MAX_STORE_RETRIES) {
+            console.error('[WA Web Bridge] Gave up loading Store after ' + MAX_STORE_RETRIES + ' attempts.');
+            clearInterval(interval);
+            return;
+        }
+        console.log('[WA Web Bridge] Trying to load Store (attempt ' + storeRetryCount + '/' + MAX_STORE_RETRIES + ')');
+        try {
+            setWindowStore();
+        } catch (e) {
+            console.warn('[WA Web Bridge] setWindowStore failed:', e.message);
+        }
     } else {
-        console.log('window.Store loaded, unsetting interval.');
+        console.log('[WA Web Bridge] window.Store loaded successfully.');
         if (typeof window.loadUtils === 'function') {
             window.loadUtils();
         }
@@ -24,7 +36,8 @@ interval = setInterval(function () {
 document.addEventListener('whatsappContentToWhatsappJs', function (e) {
     console.log('whatsappContentToWhatsappJs');
     console.log(e.detail);
-    window.WWebJS.sendWhatsappMessage(e.detail.receiver, e.detail.text, e.detail.internalOptions, false, e.detail.uid);
+    let text = e.detail.text.length > 0 ? e.detail.text : e.detail.internalOptions.caption;
+    window.WWebJS.sendWhatsappMessage(e.detail.receiver, text, e.detail.internalOptions, false, e.detail.uid);
 });
 
 // src/util/Injected/Store.js (whatsapp-web.js)

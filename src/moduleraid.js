@@ -10,16 +10,6 @@ const moduleRaid = function () {
   moduleRaid.mID  = Math.random().toString(36).substring(7);
   moduleRaid.mObj = {};
 
-  // fillModuleArray = function() {
-  //   (window.webpackChunkbuild || window.webpackChunkwhatsapp_web_client).push([
-  //     [moduleRaid.mID], {}, function(e) {
-  //       Object.keys(e.m).forEach(function(mod) {
-  //         moduleRaid.mObj[mod] = e(mod);
-  //       })
-  //     }
-  //   ]);
-  // }
-
   fillModuleArray = function() {
     if (parseFloat(window?.Debug?.VERSION) < 2.3) {
       (window.webpackChunkbuild || window.webpackChunkwhatsapp_web_client).push([
@@ -51,7 +41,11 @@ const moduleRaid = function () {
     }
   }
 
-  fillModuleArray();
+  try {
+    fillModuleArray();
+  } catch (e) {
+    console.warn('[moduleRaid] Initial load failed, will retry:', e.message);
+  }
 
   get = function get (id) {
     return moduleRaid.mObj[id]
@@ -97,8 +91,31 @@ const moduleRaid = function () {
   }
 }
 
+/**
+ * Retry wrapper: WhatsApp's webpack modules may not be available at document_idle.
+ * Retries up to 10 times (every 2s) before giving up.
+ */
+function initModuleRaid(attempt) {
+  attempt = attempt || 1;
+  var maxAttempts = 10;
+  try {
+    window.mR = moduleRaid();
+    if (Object.keys(moduleRaid.mObj).length === 0) {
+      throw new Error('No modules found');
+    }
+    console.log('[moduleRaid] Loaded ' + Object.keys(moduleRaid.mObj).length + ' modules (attempt ' + attempt + ')');
+  } catch (e) {
+    if (attempt < maxAttempts) {
+      console.warn('[moduleRaid] Attempt ' + attempt + '/' + maxAttempts + ' failed (' + e.message + '), retrying in 2s...');
+      setTimeout(function() { initModuleRaid(attempt + 1); }, 2000);
+    } else {
+      console.error('[moduleRaid] Failed after ' + maxAttempts + ' attempts. WhatsApp modules unavailable.');
+    }
+  }
+}
+
 if (typeof module === 'object' && module.exports) {
   module.exports = moduleRaid;
 } else {
-  window.mR = moduleRaid();
+  initModuleRaid(1);
 }
