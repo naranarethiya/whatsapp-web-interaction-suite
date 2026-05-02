@@ -19,7 +19,16 @@ window.applyOverrides = function () {
     window.WWebJS.sendWhatsappMessage = async function (receiver, text, options, sendSeen, uid) {
         try {
             const chatWid = window.Store.WidFactory.createWid(receiver + '@c.us');
-            const chat = await window.Store.Chat.find(chatWid);
+            // Match WWebJS.getChat: existing threads use Chat.get; new contacts must not rely on
+            // Chat.find alone — WhatsApp's internal findImpl server path breaks for some builds (#2386).
+            let chat = window.Store.Chat.get(chatWid);
+            if (!chat && window.Store.FindOrCreateChat && typeof window.Store.FindOrCreateChat.findOrCreateLatestChat === 'function') {
+                const created = await window.Store.FindOrCreateChat.findOrCreateLatestChat(chatWid);
+                chat = created && created.chat;
+            }
+            if (!chat) {
+                chat = await window.Store.Chat.find(chatWid);
+            }
             const msg = await window.WWebJS.sendMessage(chat, text, options || {});
             console.log('window.WWebJS.sendMessage response:', msg);
             document.dispatchEvent(new CustomEvent(responseEvent, {

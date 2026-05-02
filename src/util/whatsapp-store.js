@@ -229,14 +229,15 @@ function setWindowStore() {
         ...window.require('WAWebDeleteContactAction')
     };
 
-    if (!window.Store.Chat._find || !window.Store.Chat.findImpl) {
-        window.Store.Chat._find = e => {
-            const target = window.Store.Chat.get(e);
+    const chatCollection = window.Store.Chat;
+    if (chatCollection && (typeof chatCollection.findImpl !== 'function' || typeof chatCollection._find !== 'function')) {
+        chatCollection._find = function (e) {
+            const target = chatCollection.get(e);
             return target ? Promise.resolve(target) : Promise.resolve({
                 id: e
             });
         };
-        window.Store.Chat.findImpl = window.Store.Chat._find;
+        chatCollection.findImpl = chatCollection._find;
     }
 
     /**
